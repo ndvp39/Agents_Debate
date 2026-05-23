@@ -37,6 +37,11 @@ def _setup(active="anthropic"):
     }
 
 
+def _mock_gemini_client():
+    """Return a MagicMock that satisfies _gemini_client() + google.genai.types imports."""
+    return MagicMock()
+
+
 # ---------------------------------------------------------------------------
 # get_active_provider
 # ---------------------------------------------------------------------------
@@ -89,20 +94,21 @@ def test_make_debater_llm_anthropic_calls_api():
 # make_debater_llm — Gemini
 # ---------------------------------------------------------------------------
 
-def test_make_debater_llm_gemini_returns_callable(monkeypatch):
-    mock_genai = MagicMock()
-    monkeypatch.setitem(sys.modules, "google.generativeai", mock_genai)
-    llm = make_debater_llm(_setup("gemini"))
+def test_make_debater_llm_gemini_returns_callable():
+    mock_types = MagicMock()
+    with patch.dict(sys.modules, {"google.genai": MagicMock(), "google.genai.types": mock_types}), \
+         patch("debate.shared.llm_provider._gemini_client", return_value=_mock_gemini_client()):
+        llm = make_debater_llm(_setup("gemini"))
     assert callable(llm)
 
 
-def test_make_debater_llm_gemini_calls_api(monkeypatch):
-    mock_genai = MagicMock()
-    mock_model = MagicMock()
-    mock_model.generate_content.return_value.text = "gemini answer"
-    mock_genai.GenerativeModel.return_value = mock_model
-    monkeypatch.setitem(sys.modules, "google.generativeai", mock_genai)
-    llm = make_debater_llm(_setup("gemini"))
+def test_make_debater_llm_gemini_calls_api():
+    mock_client = MagicMock()
+    mock_client.models.generate_content.return_value.text = "gemini answer"
+    mock_types = MagicMock()
+    with patch.dict(sys.modules, {"google.genai": MagicMock(), "google.genai.types": mock_types}), \
+         patch("debate.shared.llm_provider._gemini_client", return_value=mock_client):
+        llm = make_debater_llm(_setup("gemini"))
     result = llm("test prompt")
     assert result == "gemini answer"
 
@@ -124,15 +130,15 @@ def test_make_judge_evaluate_llm_anthropic_returns_dict():
     assert result["rhetoric_quality"] == pytest.approx(0.9)
 
 
-def test_make_judge_evaluate_llm_gemini_returns_dict(monkeypatch):
-    mock_genai = MagicMock()
-    mock_model = MagicMock()
-    mock_model.generate_content.return_value.text = (
+def test_make_judge_evaluate_llm_gemini_returns_dict():
+    mock_client = MagicMock()
+    mock_client.models.generate_content.return_value.text = (
         '{"logical_consistency": 0.6, "citation_strength": 0.5, "rhetoric_quality": 0.7}'
     )
-    mock_genai.GenerativeModel.return_value = mock_model
-    monkeypatch.setitem(sys.modules, "google.generativeai", mock_genai)
-    evaluate = make_judge_evaluate_llm(_setup("gemini"))
+    mock_types = MagicMock()
+    with patch.dict(sys.modules, {"google.genai": MagicMock(), "google.genai.types": mock_types}), \
+         patch("debate.shared.llm_provider._gemini_client", return_value=mock_client):
+        evaluate = make_judge_evaluate_llm(_setup("gemini"))
     result = evaluate("argument text", ["cite"])
     assert "logical_consistency" in result
     assert "citation_strength" in result
@@ -149,17 +155,15 @@ def test_make_judge_route_llm_anthropic_returns_string():
     with patch("anthropic.Anthropic", return_value=mock_client):
         route = make_judge_route_llm(_setup("anthropic"))
     score = MagicMock(logical_consistency=0.8, citation_strength=0.7, rhetoric_quality=0.9)
-    result = route(score)
-    assert result == "good feedback"
+    assert route(score) == "good feedback"
 
 
-def test_make_judge_route_llm_gemini_returns_string(monkeypatch):
-    mock_genai = MagicMock()
-    mock_model = MagicMock()
-    mock_model.generate_content.return_value.text = "gemini feedback"
-    mock_genai.GenerativeModel.return_value = mock_model
-    monkeypatch.setitem(sys.modules, "google.generativeai", mock_genai)
-    route = make_judge_route_llm(_setup("gemini"))
+def test_make_judge_route_llm_gemini_returns_string():
+    mock_client = MagicMock()
+    mock_client.models.generate_content.return_value.text = "gemini feedback"
+    mock_types = MagicMock()
+    with patch.dict(sys.modules, {"google.genai": MagicMock(), "google.genai.types": mock_types}), \
+         patch("debate.shared.llm_provider._gemini_client", return_value=mock_client):
+        route = make_judge_route_llm(_setup("gemini"))
     score = MagicMock(logical_consistency=0.5, citation_strength=0.6, rhetoric_quality=0.7)
-    result = route(score)
-    assert result == "gemini feedback"
+    assert route(score) == "gemini feedback"

@@ -4,13 +4,18 @@ Active provider is resolved in priority order:
   1. LLM_PROVIDER environment variable
   2. setup.json  provider.active field
   3. Hard-coded default ("anthropic")
+
+All API calls include exponential-backoff retry for transient rate-limit errors.
 """
 
 import json
 import os
+import time
 
 _PROVIDER_ENV_VAR = "LLM_PROVIDER"
 _DEFAULT_PROVIDER = "anthropic"
+_MAX_RETRIES = 4
+_RETRY_BASE_DELAY = 5.0  # seconds; doubles each attempt
 
 
 # ------------------------------------------------------------------
@@ -66,7 +71,7 @@ def _provider_cfg(setup: dict, provider: str) -> dict:
 
 
 def _default_model(provider: str) -> str:
-    return "gemini-2.0-flash" if provider == "gemini" else "claude-sonnet-4-6"
+    return "gemini-1.5-flash" if provider == "gemini" else "claude-sonnet-4-6"
 
 
 def _extract_json(text: str) -> dict:
@@ -74,6 +79,18 @@ def _extract_json(text: str) -> dict:
     start = text.find("{")
     end = text.rfind("}") + 1
     return json.loads(text[start:end])
+
+
+def _retry(fn):
+    """Call fn(); retry up to _MAX_RETRIES times with exponential backoff."""
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            return fn()
+        except Exception as exc:
+            if attempt == _MAX_RETRIES:
+                raise
+            delay = _RETRY_BASE_DELAY * (2 ** attempt)
+            time.sleep(delay)
 
 
 # ------------------------------------------------------------------
@@ -85,13 +102,12 @@ def _anthropic_text_llm(model: str, temperature: float, max_tokens: int):
     client = anthropic.Anthropic()
 
     def llm_call(prompt: str) -> str:
-        resp = client.messages.create(
+        return _retry(lambda: client.messages.create(
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
             messages=[{"role": "user", "content": prompt}],
-        )
-        return resp.content[0].text
+        ).content[0].text)
 
     return llm_call
 
@@ -107,11 +123,11 @@ def _anthropic_evaluate_llm(model: str):
             "Reply with ONLY a JSON object:\n"
             '{"logical_consistency": <float>, "citation_strength": <float>, "rhetoric_quality": <float>}'
         )
-        resp = client.messages.create(
+        text = _retry(lambda: client.messages.create(
             model=model, max_tokens=150,
             messages=[{"role": "user", "content": prompt}],
-        )
-        return _extract_json(resp.content[0].text)
+        ).content[0].text)
+        return _extract_json(text)
 
     return evaluate_llm
 
@@ -126,43 +142,40 @@ def _anthropic_route_llm(model: str):
             f"citation={score.citation_strength:.2f}, rhetoric={score.rhetoric_quality:.2f}. "
             "Give 1-2 sentences of constructive feedback."
         )
-        resp = client.messages.create(
+        return _retry(lambda: client.messages.create(
             model=model, max_tokens=150,
             messages=[{"role": "user", "content": prompt}],
-        )
-        return resp.content[0].text
+        ).content[0].text)
 
     return route_llm
 
 
 # ------------------------------------------------------------------
-# Gemini implementations
+# Gemini implementations  (google-genai SDK)
 # ------------------------------------------------------------------
 
+def _gemini_client():
+    from google import genai
+    return genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+
+
 def _gemini_text_llm(model: str, temperature: float, max_tokens: int):
-    import google.generativeai as genai
-    genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-    client = genai.GenerativeModel(
-        model,
-        generation_config=genai.GenerationConfig(
-            temperature=temperature,
-            max_output_tokens=max_tokens,
-        ),
-    )
+    from google.genai import types
+    client = _gemini_client()
+    cfg = types.GenerateContentConfig(temperature=temperature, max_output_tokens=max_tokens)
 
     def llm_call(prompt: str) -> str:
-        return client.generate_content(prompt).text
+        return _retry(lambda: client.models.generate_content(
+            model=model, contents=prompt, config=cfg,
+        ).text)
 
     return llm_call
 
 
 def _gemini_evaluate_llm(model: str):
-    import google.generativeai as genai
-    genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-    client = genai.GenerativeModel(
-        model,
-        generation_config=genai.GenerationConfig(max_output_tokens=150),
-    )
+    from google.genai import types
+    client = _gemini_client()
+    cfg = types.GenerateContentConfig(max_output_tokens=200)
 
     def evaluate_llm(argument: str, citations: list) -> dict:
         prompt = (
@@ -171,18 +184,18 @@ def _gemini_evaluate_llm(model: str):
             "Reply with ONLY a JSON object:\n"
             '{"logical_consistency": <float>, "citation_strength": <float>, "rhetoric_quality": <float>}'
         )
-        return _extract_json(client.generate_content(prompt).text)
+        text = _retry(lambda: client.models.generate_content(
+            model=model, contents=prompt, config=cfg,
+        ).text)
+        return _extract_json(text)
 
     return evaluate_llm
 
 
 def _gemini_route_llm(model: str):
-    import google.generativeai as genai
-    genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-    client = genai.GenerativeModel(
-        model,
-        generation_config=genai.GenerationConfig(max_output_tokens=150),
-    )
+    from google.genai import types
+    client = _gemini_client()
+    cfg = types.GenerateContentConfig(max_output_tokens=150)
 
     def route_llm(score) -> str:
         prompt = (
@@ -190,6 +203,8 @@ def _gemini_route_llm(model: str):
             f"citation={score.citation_strength:.2f}, rhetoric={score.rhetoric_quality:.2f}. "
             "Give 1-2 sentences of constructive feedback."
         )
-        return client.generate_content(prompt).text
+        return _retry(lambda: client.models.generate_content(
+            model=model, contents=prompt, config=cfg,
+        ).text)
 
     return route_llm
