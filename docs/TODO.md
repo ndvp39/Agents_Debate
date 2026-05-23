@@ -95,16 +95,16 @@
 
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
-| 6.1 | Write tests for `agents/debaters/web_search_tool.py` | High | 🔴 Not Started | Dev | Tests cover search call, gatekeeper routing, result parsing |
-| 6.2 | Implement `agents/debaters/web_search_tool.py` | High | 🔴 Not Started | Dev | Tests pass; all calls via Gatekeeper; ≤150 lines |
-| 6.3 | Write tests for `agents/debaters/skills.py` | Critical | 🔴 Not Started | Dev | Tests cover all 7 skills, pipeline order, SkillNotApplicableError |
-| 6.4 | Implement `agents/debaters/skills.py` | Critical | 🔴 Not Started | Dev | Tests pass; all 7 skills locally defined; ≤150 lines per file |
-| 6.5 | Write tests for `agents/debaters/base_debater.py` | Critical | 🔴 Not Started | Dev | Tests cover skill pipeline execution, anti-sycophancy, direct rebuttal |
-| 6.6 | Implement `agents/debaters/base_debater.py` (BaseDebater) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseAgent; runs skill pipeline; ≤150 lines |
-| 6.7 | Write tests for `agents/debaters/pro_agent.py` | Critical | 🔴 Not Started | Dev | Tests cover FOR stance enforcement |
-| 6.8 | Implement `agents/debaters/pro_agent.py` (ProAgent) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseDebater; ≤150 lines |
-| 6.9 | Write tests for `agents/debaters/con_agent.py` | Critical | 🔴 Not Started | Dev | Tests cover AGAINST stance enforcement |
-| 6.10 | Implement `agents/debaters/con_agent.py` (ConAgent) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseDebater; ≤150 lines |
+| 6.1 | Write tests for `agents/debaters/web_search_tool.py` | High | ✅ Done | Dev | Tests cover search call, gatekeeper routing, result parsing |
+| 6.2 | Implement `agents/debaters/web_search_tool.py` | High | ✅ Done | Dev | Tests pass; all calls via Gatekeeper; ≤150 lines |
+| 6.3 | Write tests for `agents/debaters/skills.py` | Critical | ✅ Done | Dev | Tests cover all 7 skills, pipeline order, SkillNotApplicableError |
+| 6.4 | Implement `agents/debaters/skills.py` | Critical | ✅ Done | Dev | Tests pass; all 7 skills locally defined; ≤150 lines per file |
+| 6.5 | Write tests for `agents/debaters/base_debater.py` | Critical | ✅ Done | Dev | Tests cover skill pipeline execution, anti-sycophancy, direct rebuttal |
+| 6.6 | Implement `agents/debaters/base_debater.py` (BaseDebater) | Critical | ✅ Done | Dev | Tests pass; inherits BaseAgent; runs skill pipeline; ≤150 lines |
+| 6.7 | Write tests for `agents/debaters/pro_agent.py` | Critical | ✅ Done | Dev | Tests cover FOR stance enforcement |
+| 6.8 | Implement `agents/debaters/pro_agent.py` (ProAgent) | Critical | ✅ Done | Dev | Tests pass; inherits BaseDebater; ≤150 lines |
+| 6.9 | Write tests for `agents/debaters/con_agent.py` | Critical | ✅ Done | Dev | Tests cover AGAINST stance enforcement |
+| 6.10 | Implement `agents/debaters/con_agent.py` (ConAgent) | Critical | ✅ Done | Dev | Tests pass; inherits BaseDebater; ≤150 lines |
 
 ---
 
@@ -163,9 +163,9 @@
 | 3 — IPC protocol | 4 | 4 ✅ |
 | 4 — Base agent + Watchdog | 4 | 4 ✅ |
 | 5 — Judge agent | 4 | 4 ✅ |
-| 6 — Debater agents | 10 | 0 |
+| 6 — Debater agents | 10 | 10 ✅ |
 | 7 — Orchestrator | 2 | 0 |
 | 8 — SDK + CLI | 3 | 0 |
 | 9 — Quality gates | 6 | 0 |
 | 10 — Deliverables | 6 | 0 |
-| **Total** | **70** | **43** |
+| **Total** | **70** | **53** |
