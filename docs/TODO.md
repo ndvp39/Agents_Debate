@@ -21,6 +21,7 @@
 | 0.9 | Write `docs/PRD_watchdog.md` | Critical | ✅ Done | Dev | Covers timeout detection, kill, restart logic |
 | 0.10 | Write `docs/PRD_logging.md` | Critical | ✅ Done | Dev | Covers FIFO rotation, file limits, structured format |
 | 0.11 | **User approves all Phase 0 docs** | Critical | ✅ Done | User | All docs reviewed; written approval to proceed |
+| 0.12 | Write `docs/PRD_debater_skills.md` | Critical | ✅ Done | Dev | Covers all 7 skills with I/O, pipeline order, test scenarios |
 
 ---
 
@@ -96,15 +97,14 @@
 |---|------|----------|--------|-------|--------------------|
 | 6.1 | Write tests for `agents/debaters/web_search_tool.py` | High | 🔴 Not Started | Dev | Tests cover search call, gatekeeper routing, result parsing |
 | 6.2 | Implement `agents/debaters/web_search_tool.py` | High | 🔴 Not Started | Dev | Tests pass; all calls via Gatekeeper; ≤150 lines |
-| 6.3 | Write `docs/PRD_debater_skills.md` | Critical | ✅ Done | Dev | Covers all 7 skills with I/O, pipeline order, test scenarios |
-| 6.4 | Write tests for `agents/debaters/skills.py` | Critical | 🔴 Not Started | Dev | Tests cover all 7 skills, pipeline order, SkillNotApplicableError |
-| 6.5 | Implement `agents/debaters/skills.py` | Critical | 🔴 Not Started | Dev | Tests pass; all 7 skills locally defined; ≤150 lines per file |
-| 6.6 | Write tests for `agents/debaters/base_debater.py` | Critical | 🔴 Not Started | Dev | Tests cover skill pipeline execution, anti-sycophancy, direct rebuttal |
-| 6.7 | Implement `agents/debaters/base_debater.py` (BaseDebater) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseAgent; runs skill pipeline; ≤150 lines |
-| 6.8 | Write tests for `agents/debaters/pro_agent.py` | Critical | 🔴 Not Started | Dev | Tests cover FOR stance enforcement |
-| 6.9 | Implement `agents/debaters/pro_agent.py` (ProAgent) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseDebater; ≤150 lines |
-| 6.10 | Write tests for `agents/debaters/con_agent.py` | Critical | 🔴 Not Started | Dev | Tests cover AGAINST stance enforcement |
-| 6.11 | Implement `agents/debaters/con_agent.py` (ConAgent) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseDebater; ≤150 lines |
+| 6.3 | Write tests for `agents/debaters/skills.py` | Critical | 🔴 Not Started | Dev | Tests cover all 7 skills, pipeline order, SkillNotApplicableError |
+| 6.4 | Implement `agents/debaters/skills.py` | Critical | 🔴 Not Started | Dev | Tests pass; all 7 skills locally defined; ≤150 lines per file |
+| 6.5 | Write tests for `agents/debaters/base_debater.py` | Critical | 🔴 Not Started | Dev | Tests cover skill pipeline execution, anti-sycophancy, direct rebuttal |
+| 6.6 | Implement `agents/debaters/base_debater.py` (BaseDebater) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseAgent; runs skill pipeline; ≤150 lines |
+| 6.7 | Write tests for `agents/debaters/pro_agent.py` | Critical | 🔴 Not Started | Dev | Tests cover FOR stance enforcement |
+| 6.8 | Implement `agents/debaters/pro_agent.py` (ProAgent) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseDebater; ≤150 lines |
+| 6.9 | Write tests for `agents/debaters/con_agent.py` | Critical | 🔴 Not Started | Dev | Tests cover AGAINST stance enforcement |
+| 6.10 | Implement `agents/debaters/con_agent.py` (ConAgent) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseDebater; ≤150 lines |
 
 ---
 
@@ -157,13 +157,13 @@
 
 | Phase | Tasks | Done |
 |-------|-------|------|
-| 0 — Documentation | 11 | 11 ✅ |
+| 0 — Documentation | 12 | 12 ✅ |
 | 1 — Project skeleton | 9 | 9 ✅ |
 | 2 — Shared infrastructure | 10 | 10 ✅ |
 | 3 — IPC protocol | 4 | 4 ✅ |
 | 4 — Base agent + Watchdog | 4 | 0 |
 | 5 — Judge agent | 4 | 0 |
-| 6 — Debater agents | 11 | 1 |
+| 6 — Debater agents | 10 | 0 |
 | 7 — Orchestrator | 2 | 0 |
 | 8 — SDK + CLI | 3 | 0 |
 | 9 — Quality gates | 6 | 0 |
