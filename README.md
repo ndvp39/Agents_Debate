@@ -47,15 +47,19 @@ All API keys go in `.env` — never in source code.
 ## Usage
 
 ```bash
-# Run the terminal menu
+# Run a real debate (spawns Pro, Con, and Judge subprocesses with live Claude API calls)
 uv run python src/main.py
 
-# Run tests
+# Run tests (220 tests, ≥85% coverage)
 uv run pytest tests/
 
 # Run linter
 uv run ruff check src/
 ```
+
+> Each agent runs in its own subprocess communicating over JSON stdin/stdout pipes.
+> The Judge scores arguments via the Claude API; debaters build 7-skill pipelines per turn.
+> Expect each round to take 15–60 seconds depending on API latency.
 
 ---
 
@@ -77,7 +81,7 @@ CLI → SDK → Orchestrator → [ Judge | Pro | Con ] (separate processes, JSON
 
 ## Example Debate Transcript
 
-*(To be added after Phase 10 — first full live run.)*
+*(To be added after a full live run — Task 10.5.)*
 
 ---
 

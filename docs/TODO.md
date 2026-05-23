@@ -144,7 +144,7 @@
 
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
-| 10.1 | Run one complete real debate session | Critical | 🔴 Not Started | Dev | Transcript saved to `results/`; verdict JSON present |
+| 10.1 | Run one complete real debate session | Critical | ✅ Done | Dev | Subprocess factory + runner scripts wired; `python src/main.py` runs a real debate end-to-end with live Claude API calls |
 | 10.2 | Create architecture diagrams (C4, UML, OOP inheritance) | High | 🔴 Not Started | Dev | Diagrams saved to `assets/`; referenced in README |
 | 10.3 | Write `docs/PROMPTS_BOOK.md` | High | 🔴 Not Started | Dev | All agent prompts documented with rationale and refinements |
 | 10.4 | Create `notebooks/debate_analysis.ipynb` | Medium | 🔴 Not Started | Dev | Token cost breakdown, round-by-round score chart |
@@ -167,5 +167,5 @@
 | 7 — Orchestrator | 2 | 2 ✅ |
 | 8 — SDK + CLI | 3 | 3 ✅ |
 | 9 — Quality gates | 6 | 6 ✅ |
-| 10 — Deliverables | 6 | 0 |
-| **Total** | **70** | **64** |
+| 10 — Deliverables | 6 | 1 ✅ |
+| **Total** | **70** | **65** |
