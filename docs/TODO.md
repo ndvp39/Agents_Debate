@@ -144,7 +144,8 @@
 
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
-| 10.1 | Run one complete real debate session | Critical | ✅ Done | Dev | Subprocess factory + runner scripts wired; `python src/main.py` runs a real debate end-to-end with live Claude API calls |
+| 10.1 | Run one complete real debate session | Critical | ✅ Done | Dev | Subprocess factory + runner scripts wired; `python src/main.py` runs a real debate end-to-end with live LLM calls |
+| 10.1a | Multi-provider support (Anthropic + Gemini) | Critical | ✅ Done | Dev | `llm_provider.py` factory; `LLM_PROVIDER` env var switches providers; 233 tests at 95.34% |
 | 10.2 | Create architecture diagrams (C4, UML, OOP inheritance) | High | 🔴 Not Started | Dev | Diagrams saved to `assets/`; referenced in README |
 | 10.3 | Write `docs/PROMPTS_BOOK.md` | High | 🔴 Not Started | Dev | All agent prompts documented with rationale and refinements |
 | 10.4 | Create `notebooks/debate_analysis.ipynb` | Medium | 🔴 Not Started | Dev | Token cost breakdown, round-by-round score chart |
@@ -167,5 +168,5 @@
 | 7 — Orchestrator | 2 | 2 ✅ |
 | 8 — SDK + CLI | 3 | 3 ✅ |
 | 9 — Quality gates | 6 | 6 ✅ |
-| 10 — Deliverables | 6 | 1 ✅ |
-| **Total** | **70** | **65** |
+| 10 — Deliverables | 7 | 2 ✅ |
+| **Total** | **71** | **66** |

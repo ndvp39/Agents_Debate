@@ -10,6 +10,21 @@
       "fair point", "well said", "i concede", "you make a valid point"
     ]
   },
+  "provider": {
+    "active": "gemini",
+    "anthropic": {
+      "debater_model": "claude-sonnet-4-6",
+      "judge_model": "claude-sonnet-4-6",
+      "temperature": 0.7,
+      "max_tokens": 1024
+    },
+    "gemini": {
+      "debater_model": "gemini-2.0-flash",
+      "judge_model": "gemini-2.0-flash",
+      "temperature": 0.7,
+      "max_tokens": 1024
+    }
+  },
   "agents": {
     "judge_model": "claude-sonnet-4-6",
     "debater_model": "claude-sonnet-4-6",
@@ -20,6 +35,10 @@
     "claude-sonnet-4-6": {
       "input_per_million_tokens": 3.0,
       "output_per_million_tokens": 15.0
+    },
+    "gemini-2.0-flash": {
+      "input_per_million_tokens": 0.075,
+      "output_per_million_tokens": 0.30
     }
   },
   "sdk": {

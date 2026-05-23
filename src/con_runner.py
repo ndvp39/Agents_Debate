@@ -2,25 +2,17 @@
 
 import argparse
 import sys
+from pathlib import Path
 
-import anthropic
+from dotenv import load_dotenv
 
-from debate.agents.debaters.con_agent import ConAgent
-from debate.shared.constants import MessageType
+_PROJECT_ROOT = Path(__file__).parent.parent
+load_dotenv(_PROJECT_ROOT / ".env")
 
-
-def _make_llm():
-    client = anthropic.Anthropic()
-
-    def llm_call(prompt: str) -> str:
-        resp = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return resp.content[0].text
-
-    return llm_call
+from debate.agents.debaters.con_agent import ConAgent  # noqa: E402
+from debate.shared.config import ConfigManager  # noqa: E402
+from debate.shared.constants import MessageType  # noqa: E402
+from debate.shared.llm_provider import make_debater_llm  # noqa: E402
 
 
 def main() -> None:
@@ -28,9 +20,11 @@ def main() -> None:
     parser.add_argument("--topic", required=True)
     args = parser.parse_args()
 
+    setup = ConfigManager(config_dir=str(_PROJECT_ROOT / "config")).get_setup()
+
     agent = ConAgent(
         topic=args.topic,
-        llm_call=_make_llm(),
+        llm_call=make_debater_llm(setup),
         search_call=lambda q: [],
     )
     agent.start()

@@ -1,63 +1,26 @@
 """Subprocess entry point for the Judge agent."""
 
-import json
 import sys
+from pathlib import Path
 
-import anthropic
+from dotenv import load_dotenv
 
-from debate.agents.judge.judge_agent import JudgeAgent
-from debate.ipc.schemas import ArgumentMessage
-from debate.shared.constants import MessageType
+_PROJECT_ROOT = Path(__file__).parent.parent
+load_dotenv(_PROJECT_ROOT / ".env")
 
-
-def _make_evaluate_llm():
-    client = anthropic.Anthropic()
-
-    def evaluate_llm(argument: str, citations: list) -> dict:
-        prompt = (
-            "Score this debate argument on three dimensions from 0.0 to 1.0.\n"
-            f"Argument: {argument}\n"
-            f"Citations: {citations}\n\n"
-            "Reply with ONLY a JSON object, no explanation:\n"
-            '{"logical_consistency": <float>, "citation_strength": <float>, "rhetoric_quality": <float>}'
-        )
-        resp = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=150,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text = resp.content[0].text.strip()
-        start = text.find("{")
-        end = text.rfind("}") + 1
-        return json.loads(text[start:end])
-
-    return evaluate_llm
-
-
-def _make_route_llm():
-    client = anthropic.Anthropic()
-
-    def route_llm(score) -> str:
-        prompt = (
-            f"A debate argument scored: logical_consistency={score.logical_consistency:.2f}, "
-            f"citation_strength={score.citation_strength:.2f}, "
-            f"rhetoric_quality={score.rhetoric_quality:.2f} (weighted={score.weighted:.2f}). "
-            "Give 1-2 sentences of constructive feedback."
-        )
-        resp = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=150,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return resp.content[0].text
-
-    return route_llm
+from debate.agents.judge.judge_agent import JudgeAgent  # noqa: E402
+from debate.ipc.schemas import ArgumentMessage  # noqa: E402
+from debate.shared.config import ConfigManager  # noqa: E402
+from debate.shared.constants import MessageType  # noqa: E402
+from debate.shared.llm_provider import make_judge_evaluate_llm, make_judge_route_llm  # noqa: E402
 
 
 def main() -> None:
+    setup = ConfigManager(config_dir=str(_PROJECT_ROOT / "config")).get_setup()
+
     agent = JudgeAgent(
-        evaluate_llm=_make_evaluate_llm(),
-        route_llm=_make_route_llm(),
+        evaluate_llm=make_judge_evaluate_llm(setup),
+        route_llm=make_judge_route_llm(setup),
     )
     agent.start()
 
