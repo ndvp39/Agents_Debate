@@ -146,7 +146,7 @@
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
 | 10.1 | Run one complete real debate session | Critical | ✅ Done | Dev | Subprocess factory + runner scripts wired; `python src/main.py` runs a real debate end-to-end with live LLM calls |
-| 10.1a | Multi-provider support (Anthropic + Gemini) | Critical | ✅ Done | Dev | `llm_provider.py` factory; `LLM_PROVIDER` env var; migrated to `google-genai` SDK; exponential-backoff retry; judge evaluate fixed (2048 token budget for thinking model); 233 tests at 94.41% |
+| 10.1a | Multi-provider support (Anthropic + Gemini) | Critical | ✅ Done | Dev | `llm_provider.py` factory; `LLM_PROVIDER` env var; migrated to `google-genai` SDK; smart retry (waits suggested delay for per-minute limits, fails fast with clear message for daily quota); 246 tests at 95.11% |
 | 10.2 | Create architecture diagrams (C4, UML, OOP inheritance) | High | 🔴 Not Started | Dev | Diagrams saved to `assets/`; referenced in README |
 | 10.3 | Write `docs/PROMPTS_BOOK.md` | High | 🔴 Not Started | Dev | All agent prompts documented with rationale and refinements |
 | 10.4 | Create `notebooks/debate_analysis.ipynb` | Medium | 🔴 Not Started | Dev | Token cost breakdown, round-by-round score chart |
