@@ -13,14 +13,14 @@
 | 0.1 | Write `docs/PRD.md` | Critical | ✅ Done | Dev | PRD reviewed and approved by user |
 | 0.2 | Write `docs/PLAN.md` | Critical | ✅ Done | Dev | PLAN reviewed and approved by user |
 | 0.3 | Write `docs/TODO.md` | Critical | ✅ Done | Dev | TODO reviewed and approved by user |
-| 0.4 | Write `docs/PRD_debate_orchestrator.md` | Critical | 🔴 Not Started | Dev | Covers orchestration loop, round management, process lifecycle |
-| 0.5 | Write `docs/PRD_ipc_protocol.md` | Critical | 🔴 Not Started | Dev | Covers all 3 JSON schemas, validation rules, error handling |
-| 0.6 | Write `docs/PRD_judge_agent.md` | Critical | 🔴 Not Started | Dev | Covers all 4 skills, scoring logic, verdict rules |
-| 0.7 | Write `docs/PRD_debater_agents.md` | Critical | 🔴 Not Started | Dev | Covers anti-sycophancy directive, web-search integration |
-| 0.8 | Write `docs/PRD_api_gatekeeper.md` | Critical | 🔴 Not Started | Dev | Covers rate limits, FIFO queue, retry, token tracking |
-| 0.9 | Write `docs/PRD_watchdog.md` | Critical | 🔴 Not Started | Dev | Covers timeout detection, kill, restart logic |
-| 0.10 | Write `docs/PRD_logging.md` | Critical | 🔴 Not Started | Dev | Covers FIFO rotation, file limits, structured format |
-| 0.11 | **User approves all Phase 0 docs** | Critical | 🔴 Not Started | User | All docs reviewed; written approval to proceed |
+| 0.4 | Write `docs/PRD_debate_orchestrator.md` | Critical | ✅ Done | Dev | Covers orchestration loop, round management, process lifecycle |
+| 0.5 | Write `docs/PRD_ipc_protocol.md` | Critical | ✅ Done | Dev | Covers all 3 JSON schemas, validation rules, error handling |
+| 0.6 | Write `docs/PRD_judge_agent.md` | Critical | ✅ Done | Dev | Covers all 4 skills, scoring logic, verdict rules |
+| 0.7 | Write `docs/PRD_debater_agents.md` | Critical | ✅ Done | Dev | Covers anti-sycophancy directive, web-search integration |
+| 0.8 | Write `docs/PRD_api_gatekeeper.md` | Critical | ✅ Done | Dev | Covers rate limits, FIFO queue, retry, token tracking |
+| 0.9 | Write `docs/PRD_watchdog.md` | Critical | ✅ Done | Dev | Covers timeout detection, kill, restart logic |
+| 0.10 | Write `docs/PRD_logging.md` | Critical | ✅ Done | Dev | Covers FIFO rotation, file limits, structured format |
+| 0.11 | **User approves all Phase 0 docs** | Critical | ✅ Done | User | All docs reviewed; written approval to proceed |
 
 ---
 
@@ -28,15 +28,15 @@
 
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
-| 1.1 | Initialize `uv` project (`pyproject.toml`, `uv.lock`) | Critical | 🔴 Not Started | Dev | `uv sync` runs without error |
-| 1.2 | Create full directory structure | Critical | 🔴 Not Started | Dev | All dirs exist: src/, tests/, docs/, config/, data/, results/, assets/, notebooks/, logs/ |
-| 1.3 | Create `config/setup.json` (versioned) | Critical | 🔴 Not Started | Dev | Passes schema validation; version = "1.00" |
-| 1.4 | Create `config/rate_limits.json` (versioned) | Critical | 🔴 Not Started | Dev | Passes schema validation; version = "1.00" |
-| 1.5 | Create `config/logging_config.json` (versioned) | Critical | 🔴 Not Started | Dev | Passes schema validation; version = "1.00" |
-| 1.6 | Create `.env-example` with placeholder keys | Critical | 🔴 Not Started | Dev | All required env vars documented; no real values |
-| 1.7 | Create `.gitignore` | High | 🔴 Not Started | Dev | Includes `.env`, `*.pem`, `*.key`, `__pycache__`, `.venv`, `uv.lock` exceptions |
-| 1.8 | Configure `pyproject.toml` (ruff, pytest-cov, uv scripts) | Critical | 🔴 Not Started | Dev | `uv run ruff check` and `uv run pytest` both executable |
-| 1.9 | Create all `__init__.py` files | High | 🔴 Not Started | Dev | Every package directory has `__init__.py` with `__all__` and `__version__` |
+| 1.1 | Initialize `uv` project (`pyproject.toml`, `uv.lock`) | Critical | ✅ Done | Dev | `uv sync` runs without error |
+| 1.2 | Create full directory structure | Critical | ✅ Done | Dev | All dirs exist: src/, tests/, docs/, config/, data/, results/, assets/, notebooks/, logs/ |
+| 1.3 | Create `config/setup.json` (versioned) | Critical | ✅ Done | Dev | Passes schema validation; version = "1.00" |
+| 1.4 | Create `config/rate_limits.json` (versioned) | Critical | ✅ Done | Dev | Passes schema validation; version = "1.00" |
+| 1.5 | Create `config/logging_config.json` (versioned) | Critical | ✅ Done | Dev | Passes schema validation; version = "1.00" |
+| 1.6 | Create `.env-example` with placeholder keys | Critical | ✅ Done | Dev | All required env vars documented; no real values |
+| 1.7 | Create `.gitignore` | High | ✅ Done | Dev | Includes `.env`, `*.pem`, `*.key`, `__pycache__`, `.venv`, `uv.lock` exceptions |
+| 1.8 | Configure `pyproject.toml` (ruff, pytest-cov, uv scripts) | Critical | ✅ Done | Dev | `uv run ruff check` and `uv run pytest` both executable |
+| 1.9 | Create all `__init__.py` files | High | ✅ Done | Dev | Every package directory has `__init__.py` with `__all__` and `__version__` |
 
 ---
 
@@ -154,8 +154,8 @@
 
 | Phase | Tasks | Done |
 |-------|-------|------|
-| 0 — Documentation | 11 | 3 |
-| 1 — Project skeleton | 9 | 0 |
+| 0 — Documentation | 11 | 11 ✅ |
+| 1 — Project skeleton | 9 | 9 ✅ |
 | 2 — Shared infrastructure | 10 | 0 |
 | 3 — IPC protocol | 4 | 0 |
 | 4 — Base agent + Watchdog | 4 | 0 |
@@ -165,4 +165,4 @@
 | 8 — SDK + CLI | 3 | 0 |
 | 9 — Quality gates | 6 | 0 |
 | 10 — Deliverables | 6 | 0 |
-| **Total** | **67** | **3** |
+| **Total** | **67** | **20** |
