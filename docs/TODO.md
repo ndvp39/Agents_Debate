@@ -61,10 +61,10 @@
 
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
-| 3.1 | Write tests for `ipc/schemas.py` | Critical | 🔴 Not Started | Dev | Tests cover all 3 message types, invalid schema rejection |
-| 3.2 | Implement `ipc/schemas.py` (RoutingMessage, ReprimandMessage, VerdictMessage) | Critical | 🔴 Not Started | Dev | Tests pass; dataclasses with validation; ≤150 lines |
-| 3.3 | Write tests for `ipc/channel.py` | Critical | 🔴 Not Started | Dev | Tests cover send, receive, malformed JSON handling |
-| 3.4 | Implement `ipc/channel.py` (IPCChannel) | Critical | 🔴 Not Started | Dev | Tests pass; JSON serialization/deserialization; ≤150 lines |
+| 3.1 | Write tests for `ipc/schemas.py` | Critical | ✅ Done | Dev | Tests cover all 3 message types, invalid schema rejection |
+| 3.2 | Implement `ipc/schemas.py` (RoutingMessage, ReprimandMessage, VerdictMessage) | Critical | ✅ Done | Dev | Tests pass; dataclasses with validation; ≤150 lines |
+| 3.3 | Write tests for `ipc/channel.py` | Critical | ✅ Done | Dev | Tests cover send, receive, malformed JSON handling |
+| 3.4 | Implement `ipc/channel.py` (IPCChannel) | Critical | ✅ Done | Dev | Tests pass; JSON serialization/deserialization; ≤150 lines |
 
 ---
 
@@ -160,7 +160,7 @@
 | 0 — Documentation | 11 | 11 ✅ |
 | 1 — Project skeleton | 9 | 9 ✅ |
 | 2 — Shared infrastructure | 10 | 10 ✅ |
-| 3 — IPC protocol | 4 | 0 |
+| 3 — IPC protocol | 4 | 4 ✅ |
 | 4 — Base agent + Watchdog | 4 | 0 |
 | 5 — Judge agent | 4 | 0 |
 | 6 — Debater agents | 11 | 1 |
@@ -168,4 +168,4 @@
 | 8 — SDK + CLI | 3 | 0 |
 | 9 — Quality gates | 6 | 0 |
 | 10 — Deliverables | 6 | 0 |
-| **Total** | **70** | **31** |
+| **Total** | **70** | **35** |
