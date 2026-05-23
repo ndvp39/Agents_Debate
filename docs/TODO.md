@@ -147,11 +147,11 @@
 |---|------|----------|--------|-------|--------------------|
 | 10.1 | Run one complete real debate session | Critical | ✅ Done | Dev | Subprocess factory + runner scripts wired; `python src/main.py` runs a real debate end-to-end with live LLM calls |
 | 10.1a | Multi-provider support (Anthropic + Gemini) | Critical | ✅ Done | Dev | `llm_provider.py` factory; `LLM_PROVIDER` env var; migrated to `google-genai` SDK; smart retry (waits suggested delay for per-minute limits, fails fast with clear message for daily quota); 246 tests at 95.11% |
-| 10.2 | Create architecture diagrams (C4, UML, OOP inheritance) | High | 🔴 Not Started | Dev | Diagrams saved to `assets/`; referenced in README |
-| 10.3 | Write `docs/PROMPTS_BOOK.md` | High | 🔴 Not Started | Dev | All agent prompts documented with rationale and refinements |
-| 10.4 | Create `notebooks/debate_analysis.ipynb` | Medium | 🔴 Not Started | Dev | Token cost breakdown, round-by-round score chart |
-| 10.5 | Finalize `README.md` | Critical | ✅ Done | Dev | Quick-start for lecturer, provider setup, architecture diagram, agent pipeline, example debate output, project structure |
-| 10.6 | Push to GitHub (public or shared with lecturer) | Critical | 🔴 Not Started | Dev | Repo accessible; `.env` not committed; `.env-example` present |
+| 10.2 | Create architecture diagrams (C4, UML, OOP inheritance) | High | ✅ Done | Dev | Mermaid diagrams in `assets/architecture_c4.md`, `architecture_uml_sequence.md`, `architecture_oop.md` |
+| 10.3 | Write `docs/PROMPTS_BOOK.md` | High | ✅ Done | Dev | All 7 debater + 4 judge skill prompts documented with rationale; context engineering improvements documented |
+| 10.4 | Create `notebooks/debate_analysis.ipynb` | Medium | ✅ Done | Dev | Round-by-round score chart, dimension breakdown, cost comparison, message distribution; saves charts to assets/ |
+| 10.5 | Finalize `README.md` | Critical | ✅ Done | Dev | Quick-start for lecturer, provider setup, architecture, agent pipeline, full 10-round transcript (248 tests · 95%+ coverage) |
+| 10.6 | Push to GitHub (public or shared with lecturer) | Critical | ✅ Done | Dev | Repo accessible at github.com/ndvp39/Agents_Debate; `.env` not committed; `.env-example` present |
 
 ---
 
@@ -169,5 +169,5 @@
 | 7 — Orchestrator | 2 | 2 ✅ |
 | 8 — SDK + CLI | 3 | 3 ✅ |
 | 9 — Quality gates | 6 | 6 ✅ |
-| 10 — Deliverables | 7 | 3 ✅ |
-| **Total** | **71** | **67** |
+| 10 — Deliverables | 7 | 7 ✅ |
+| **Total** | **71** | **71** |

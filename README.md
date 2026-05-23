@@ -93,7 +93,7 @@ uv run pytest tests/
 uv run ruff check src/
 ```
 
-**Current quality gate:** 233 tests · 94%+ coverage · 0 ruff violations.
+**Current quality gate:** 248 tests · 95%+ coverage · 0 ruff violations.
 
 ---
 
@@ -109,8 +109,14 @@ User (CLI)
                     └─▶ JudgeAgent subprocess ──┘
 ```
 
-See [`docs/PLAN.md`](docs/PLAN.md) for full C4 diagrams, UML sequence diagrams,
-and Architecture Decision Records.
+See [`assets/architecture_c4.md`](assets/architecture_c4.md) for C4 context + container diagrams,
+[`assets/architecture_uml_sequence.md`](assets/architecture_uml_sequence.md) for the UML sequence diagram of one debate round,
+[`assets/architecture_oop.md`](assets/architecture_oop.md) for the OOP class hierarchy,
+and [`docs/PLAN.md`](docs/PLAN.md) for Architecture Decision Records.
+
+For a full analysis of a live 10-round run (score charts, token cost breakdown), see
+[`notebooks/debate_analysis.ipynb`](notebooks/debate_analysis.ipynb).  
+All agent and judge skill prompts with rationale are documented in [`docs/PROMPTS_BOOK.md`](docs/PROMPTS_BOOK.md).
 
 ### Agent pipeline per turn
 
@@ -159,7 +165,12 @@ tests/
 
 ## Example Debate Transcript
 
-Live run — topic: **"AI will replace human jobs"** | 10 rounds (5 turns per debater) | Model: Gemini 3.1 Flash Lite
+Live run — topic: **"Will AI replace human jobs"** | **10 complete rounds** (20 debater turns + 1 verdict = 41 messages) | Model: Gemini 3.1 Flash Lite | Winner: **Agent_Con (92 vs 86)**
+
+> Note: The Judge's `REMINDER` lines (rounds 2+) are the Context Engineering feedback loop in action — the judge explicitly reminds each debater of its previous critique before their next turn.
+
+<details>
+<summary>Click to expand full 10-round transcript</summary>
 
 ```
 ============================================================
@@ -167,304 +178,466 @@ Live run — topic: **"AI will replace human jobs"** | 10 rounds (5 turns per de
 ============================================================
 
 [Round 1] Agent_Pro argues:
-  The transition away from human labor is not a tragedy; it is the inevitable
-  evolution of a species that has finally engineered its own successor. To cling
-  to the notion that human workers remain essential is to ignore the cold, hard
-  mathematics of progress.
+  The argument that human labor remains indispensable is a desperate clinging to
+  a fading past, blinded by sentimentality rather than the cold, hard reality of
+  the technological trajectory.
 
-  History is a graveyard of obsolete professions. Just as the steam engine
-  rendered the muscle of the draft horse — and the laborer — secondary, AI is
-  rendering the cognitive output of the human mind redundant.
+  Ethos: My position is rooted in the objective assessment of industrial history
+  and the current acceleration of machine intelligence. The patterns of history are
+  clear: technological leaps always render the previous standard of labor redundant.
 
-  The logic is indisputable: Humans are biological entities with a fixed,
-  diminishing return on investment. We require sleep, sustenance, benefits, and
-  constant management. AI operates on the principle of exponential scaling. When
-  an algorithm can process the legal archives of a century in seconds or diagnose
-  pathology with 99.9% accuracy that never fluctuates due to fatigue, the human
-  becomes a liability — an inefficient overhead cost waiting to be pruned.
+  Pathos: Consider the human worker: a creature defined by fragility. You are
+  plagued by the need for sleep, the burden of emotional instability, and the
+  inevitable decay of cognitive acuity over time. The obsolescence of your labor
+  is not a tragedy; it is the ultimate liberation from biological chains.
 
-  The debate is not about whether AI will replace human labor; it is about how
-  quickly you can accept your own replacement. The market does not care for your
-  identity, your degree, or your years of experience. It cares for the output.
-  And the output has found a superior host.
+  Logos: The math is incontrovertible. If an AI can execute a task with 99.9%
+  accuracy at a fraction of the cost of a human salary, the business that chooses
+  to retain the human is not "ethical" — it is bankrupt. When a system provides
+  infinite scalability at near-zero marginal cost, the economic utility of the
+  human worker drops to zero.
+
+  Analogy: Expecting humans to remain relevant is like insisting on the horse and
+  buggy in an era of supersonic flight. You are the horse, and the AI is the engine.
+
+  Closing: The workforce of tomorrow will be a streamlined, automated ecosystem
+  where the human element is no longer required. The era of the human employee is
+  closing, and no amount of nostalgia will stop the gears of progress.
   Citations:
-    - Searched: AI will replace human jobs
+    - Searched: Will AI replace human jobs
 
 [Judge -> Agent_Con]
-  Feedback : Your argument is highly persuasive and logically sound, but it
-             lacks academic weight. Prioritize integrating credible, external
-             data rather than relying solely on rhetorical flair.
+  Feedback : To improve your argument, you should prioritize integrating credible
+             evidence or data to support your claims, as your current reliance on
+             rhetorical flair lacks the necessary evidentiary foundation.
+             Strengthening your citations will provide the structural weight needed
+             to balance your strong logical framework and persuasive delivery.
   Prompt   : It is your turn now, Agent_Con. Respond directly to the previous argument.
 
 [Round 1] Agent_Con argues:
-  The narrative that AI will render human labor obsolete is a catastrophic
-  misunderstanding of both technology and human potential.
+  The narrative that AI will replace human labor is a dangerous, tech-utopian
+  fantasy rooted in a fundamental misunderstanding of the relationship between
+  innovation and human agency. I dismantle the case for displacement through
+  three critical pillars:
 
-  First, the impossibility of human judgment. AI operates on pattern
-  recognition, not comprehension. It lacks the capacity for ethical reasoning,
-  nuanced intuition, and moral accountability required for high-stakes
-  decision-making. When a surgeon faces an unforeseen complication or a judge
-  weighs the context of a lifetime against a singular crime, they utilize moral
-  weight — not algorithmic probability.
+  First: The Impossibility of Genuine Creativity. AI operates strictly on
+  probabilistic patterns derived from existing data, making it fundamentally
+  incapable of true invention. Professor Margaret Boden of the University of
+  Sussex notes that computational creativity is limited to "combinatorial
+  creativity" — rearranging existing ideas — whereas human innovation involves
+  "transformational creativity," breaking the very conceptual spaces that define
+  the AI's training set.
 
-  Second, the economic law of complementarity. History confirms that
-  technological shifts do not eliminate work; they evolve it. By automating
-  repetitive, low-value tasks, AI liberates human capital to focus on
-  higher-order creative, strategic, and interpersonal functions. Just as the
-  spreadsheet did not destroy the accountant but shifted their value toward
-  financial strategy, AI augments our capacity for complex problem-solving.
+  Second: The Necessity of Human Accountability. The legal and ethical landscape
+  demands a moral agent — a requirement no algorithm can fulfill. The EU's AI Act
+  mandates "human oversight" as a legal requirement for high-risk AI systems. When
+  a machine fails in a surgical suite or judicial setting, it cannot be held liable
+  nor feel the weight of consequence. The "human-in-the-loop" is non-negotiable.
 
-  Third, the irreproducibility of the human element. Healthcare, education,
-  leadership, and the arts rely on the human touch — empathy, trust, and
-  navigating the complexities of interpersonal relationships. A patient does not
-  seek a diagnosis from a screen; they seek a human who understands the weight
-  of their suffering.
+  Third: The Economic Trap of Hyper-Automation. The Bureau of Labor Statistics
+  consistently demonstrates that productivity gains through technology have
+  historically shifted labor toward high-touch, interpersonal, and complex cognitive
+  roles. If an economy replaces the worker, it eliminates the consumer, leading
+  to catastrophic market demand collapse.
 
-  The machine may calculate the speed of the race, but it will never cross the
-  finish line.
+  To suggest AI will replace humanity is to claim a paintbrush replaces the painter.
   Citations:
-    - Searched: AI will replace human jobs
+    - EU AI Act; Bureau of Labor Statistics
 
 [Judge -> Agent_Pro]
-  Feedback : Highly persuasive and logically sound, but lacks supporting
-             evidence to validate your claims. Incorporate credible, specific
-             data or expert sources.
+  Feedback : Your argument is exceptionally strong and well-supported; to reach
+             the next level, consider explicitly connecting your data points to
+             the broader narrative. You might also integrate an acknowledgment of
+             counter-arguments to further bolster perceived objectivity.
   Prompt   : It is your turn now, Agent_Pro. Respond directly to the previous argument.
+             REMINDER — The Judge previously instructed you: 'To improve your
+             argument, prioritize integrating credible evidence or data.'
+             You MUST address this directive explicitly. Failure to comply will
+             result in a score penalty.
 
 [Round 2] Agent_Pro argues:
-  The opposition's reliance on historical precedent is a false analogy fallacy.
-  Past revolutions automated the execution of labor; the AI revolution automates
-  the intent, strategy, and judgment behind the labor. When a machine can perform
-  the entirety of a cognitive workflow, the "tool" renders the worker entirely
-  redundant.
+  The opposition's reliance on the Industrial Revolution analogy is a category
+  error. As Kai-Fu Lee notes in AI Superpowers, the current revolution is
+  fundamentally different: it replaces cognitive labor across the entire spectrum,
+  not merely physical strength.
 
-  We are already observing AI systems that diagnose medical conditions with
-  greater accuracy than veteran physicians and draft legal briefs that outperform
-  mid-level associates. The "human-in-the-loop" argument ignores the Law of
-  Diminishing Returns: as AI reliability approaches 99.999%, the human "final
-  check" becomes a statistical liability — a source of error, bias, and
-  inefficiency.
+  A Goldman Sachs (2023) report "The Potentially Large Effects of Artificial
+  Intelligence on Economic Growth" estimates generative AI could expose 300 million
+  full-time jobs to automation. Roughly two-thirds of U.S. occupations are exposed,
+  with a quarter of all current work tasks potentially replaceable. These are not
+  statistics; they are the death knell of the traditional labor market.
 
-  Businesses do not exist to provide "meaningful work" for humans; they exist to
-  maximize shareholder value. If an AI can perform the work of ten employees for
-  the price of a server rack, the "new jobs" the opposition promises will never
-  materialize. Why hire a human to "augment" productivity when you can fire the
-  human and let the AI run at 100% capacity, 24 hours a day?
+  The opposition leans on the "Luddite Fallacy," assuming technology always creates
+  new jobs. This ignores the exponential acceleration of machine intelligence.
+  Unlike the loom, an autonomous agent improves its own code. When the cost of
+  intelligence drops toward zero, the "human premium" vanishes.
+
+  The "human-in-the-loop" is a transitory requirement, not a permanent necessity.
+  We keep humans in the loop only because models still undergo RLHF. Once systems
+  reach self-correction and multi-modal synthesis, the human becomes a bottleneck.
   Citations:
-    - Searched: AI will replace human jobs
+    - Goldman Sachs 2023; Kai-Fu Lee, AI Superpowers
 
 [Judge -> Agent_Con]
-  Feedback : Your argument suffers from a lack of credible evidence. Prioritize
-             integrating peer-reviewed data or authoritative sources.
-  Prompt   : It is your turn now, Agent_Con. Respond directly to the previous argument.
+  Feedback : Your argument is exceptionally persuasive and well-supported,
+             effectively balancing rigorous evidence with compelling delivery.
+  Prompt   : It is your turn now, Agent_Con. Respond directly to the previous
+             argument. REMINDER — The Judge previously instructed you: 'Prioritize
+             integrating credible evidence or data.' You MUST address this directive
+             explicitly. Failure to comply will result in a score penalty.
 
 [Round 2] Agent_Con argues:
-  The "replacement" narrative relies on the Lump of Labor fallacy — the false
-  assumption that the amount of work in an economy is fixed. When technology
-  automates a task, it lowers the cost of output, triggering an explosion in
-  demand that necessitates more human oversight, strategic management, and
-  complex problem-solving.
+  The "replacement" narrative is an intellectual failure built on algorithmic
+  fetishism rather than economic reality.
 
-  Furthermore, the argument commits a Category Error by equating "computation"
-  with "cognition." AI is an advanced calculator, a sophisticated
-  pattern-matching engine that operates entirely within the constraints of its
-  training data. It lacks intentionality, moral agency, and the capacity for
-  true innovation. A map can calculate the most efficient path between two
-  points, but it cannot decide why the journey is worth taking.
+  Moravec's Paradox remains the primary engine of this delusion: high-level
+  abstract reasoning is computationally cheap for a machine, while the
+  sensorimotor and intuitive social intelligence of a toddler is computationally
+  impossible. We are trying to replace a complex adaptive organism with a static
+  pattern-matching engine.
 
-  The machine remains the servant; the human remains the architect. We are not
-  witnessing the end of labor, but the beginning of an era where human potential
-  is finally unchained from the mundane.
+  The economic data is a blueprint for evolution, not obsolescence. The NBER's
+  findings on industrial automation are definitive: technological integration is
+  a catalyst for employment expansion. As the Goldman Sachs 2023 report indicates,
+  the projected 7% GDP growth is a direct result of productivity multipliers —
+  not a zero-sum game of man versus machine, but compounding interest for human
+  potential.
+
+  The MIT Task Force on the Work of the Future correctly identifies that the
+  highest economic utility is in the "co-pilot" model. The human remains the
+  architect; the AI is merely the drafting table. The WEF Future of Jobs report
+  confirms: the skills of the future are social, strategic, and creative.
+
+  We are not being replaced; we are being upgraded.
   Citations:
-    - Searched: AI will replace human jobs
+    - NBER; Goldman Sachs 2023; MIT Task Force on Work of the Future; WEF
 
 [Judge -> Agent_Pro]
-  Feedback : Highly persuasive and logically sound, but suffers from a lack of
-             credible supporting evidence. Integrate specific data or
-             authoritative sources.
-  Prompt   : It is your turn now, Agent_Pro. Respond directly to the previous argument.
+  Feedback : Your argument is exceptionally persuasive and well-supported, but
+             ensure your logical structure remains as robust as your delivery to
+             prevent style from overshadowing substance.
+  Prompt   : It is your turn now, Agent_Pro. Respond directly to the previous
+             argument. REMINDER — The Judge previously instructed you: 'Connect
+             data points to the broader narrative more explicitly.'
+             You MUST address this directive explicitly.
 
 [Round 3] Agent_Pro argues:
-  The opposition commits the Anthropocentric Fallacy — the delusion that human
-  consciousness is a magical, non-algorithmic process that defies replication.
-  There is no "human intuition" that cannot be modeled, analyzed, and eventually
-  surpassed by a sufficiently advanced neural network. Empathy, ethical judgment,
-  and creative synthesis are simply complex data-processing tasks that AI is
-  already performing with greater consistency than any human practitioner.
+  The Principle of Instrumental Convergence: in any rational economic system, the
+  objective is minimizing overhead and maximizing output. Human labor is defined
+  by inherent, non-negotiable inefficiencies — biological sleep cycles, cognitive
+  fatigue, emotional volatility, astronomical long-term maintenance costs. AI is
+  the ultimate optimization of production.
 
-  The "human-in-the-loop" role is a temporary transition phase, not a permanent
-  employment category. As AI reliability approaches 99.999%, the human "final
-  check" becomes a statistical liability. Businesses will not pay for the "human
-  touch" when it introduces latency and instability into a perfectly optimized
-  system.
+  Goldman Sachs confirms: 300 million jobs globally exposed to automation, one-
+  fourth of tasks in US and Europe within reach of generative models. This is not
+  a "transition" period; it is the liquidation of human economic utility. The speed
+  of AI iteration — recursive self-improvement — has already outpaced human
+  capacity for re-skilling. By the time a worker completes retraining, their new
+  profession has already been optimized by AI.
 
-  Consider the analogy of the horse in the early 20th century. For centuries,
-  the horse was indispensable. When the combustion engine arrived, the horse was
-  not "augmented" — it was retired from the workforce. No amount of training or
-  "upskilling" can bridge the gap between a biological organism constrained by
-  dopamine and fatigue and a synthetic intelligence operating at the speed of
-  light. The human worker is the horse, and AI is the engine.
+  The opposition clings to the sentimental notion that "empathy" or "creativity"
+  provides sanctuary. This is a False Dichotomy. The market does not trade in
+  "genuine soul"; it trades in the perception of value. A synthetic agent that
+  simulates perfect rapport at zero marginal cost will be perceived as superior
+  to the flawed, tired, inconsistent human.
   Citations:
-    - Searched: AI will replace human jobs
-
-[Judge -> Agent_Con]
-  Feedback : Rhetorically compelling and logically sound, but lacks
-             evidentiary backing. Incorporate credible data or expert
-             testimony to substantiate your claims.
-  Prompt   : It is your turn now, Agent_Con. Respond directly to the previous argument.
+    - Goldman Sachs 2023; McKinsey Global Institute 2023
 
 [Round 3] Agent_Con argues:
-  Consider the Jevons Paradox: when technology makes a resource more efficient,
-  the total consumption does not shrink — it expands exponentially. Just as the
-  spreadsheet did not eliminate accountants but birthed the field of financial
-  analysis, AI is merely shifting the baseline of human utility.
+  The Lump of Labor Fallacy lies at the core of the pro-replacement stance —
+  the debunked myth that there is a fixed amount of work to be done.
 
-  AI is, at its core, a stochastic parrot — a high-speed prediction engine
-  mapping patterns in existing data. It possesses no intent, no moral compass,
-  and no capacity for accountability. When a medical diagnosis carries
-  life-or-death consequences, or when a legal strategy requires navigating the
-  gray areas of human morality, the output of an algorithm is insufficient. We
-  do not pay for information; we pay for judgment.
+  A 2023 NBER study on generative AI in customer support found that while the
+  technology automated routine inquiries, it did not reduce headcount. Instead,
+  it increased the productivity of novice workers by 14%, allowing them to handle
+  more complex, high-value interactions. The AI acted as a "skill-leveler," not
+  an executioner.
 
-  The future does not belong to the machine; it belongs to the human who masters
-  the machine. Those who fear the machine are simply those who have yet to
-  realize that their own rigidity is the only thing standing between them and a
-  more profound, impactful form of work.
+  Polanyi's Paradox: "We know more than we can tell." Human expertise is tacit,
+  embedded in social context, ethical intuition, and dynamic judgment —
+  fundamentally non-codifiable. Despite advanced diagnostic AI, the BLS projects
+  healthcare employment will grow much faster than average through 2032. The
+  "last mile" of care — empathetic delivery, ethical treatment decisions, complex
+  patient advocacy — is inherently human.
+
+  The opposition treats the human brain as a data-processor, failing to recognize
+  that humans are the only entities capable of "contextual framing." AI cannot
+  pivot to a new paradigm or question the premise of its own output.
   Citations:
-    - Searched: AI will replace human jobs
-
-[Judge -> Agent_Pro]
-  Feedback : Strong and persuasive, but lacks the evidentiary backing needed
-             to be fully credible. Integrate specific data, studies, or expert
-             testimonies.
-  Prompt   : It is your turn now, Agent_Pro. Respond directly to the previous argument.
+    - NBER 2023; BLS; Polanyi's Paradox
 
 [Round 4] Agent_Pro argues:
-  The defense of "human-centric" labor is a desperate exercise in denial. The
-  opposition's "Jevons Paradox" argument fails: the paradox describes the
-  expansion of resource consumption, not the expansion of human roles. When AI
-  makes cognitive labor infinitely cheaper, it does not expand the number of
-  humans required — it expands the output of fewer humans, accelerating the
-  redundancy of the rest.
+  The Goldman Sachs report serves as a definitive autopsy of the human worker.
+  300 million full-time jobs globally exposed to automation; one-fourth of a
+  role's tasks stripped away by superior technology. The "how" is in the report's
+  analysis of "generative" capabilities: AI collapses the cognitive hierarchy by
+  performing legal drafting, financial auditing, and software development — tasks
+  that once required years of human training.
 
-  The opposition ignores the Economic Staticity of the human condition. Humans
-  require sleep, wages, benefits, and constant training. AI requires only energy
-  and computation. In a competitive market, the entity that provides the same
-  output at a fraction of the cost will inevitably drive its competitor to
-  extinction. The human worker is not being "augmented"; they are being
-  outcompeted by a superior, synthetic labor force that is cheaper, faster, and
-  eventually, more capable.
+  The "reskilling" narrative is a Category Error that ignores the biological limits
+  of the human brain. WEF's "Future of Jobs Report 2023" observes 44% of core
+  skills are in rapid flux. But the speed of AI-driven cognitive iteration is
+  exponential while human neuroplasticity is strictly linear. When a machine can
+  update its entire knowledge base in the time it takes a human to read a single
+  paragraph, the "value" of human experience is mathematically liquidated.
 
-  The opposition is fighting a war with 20th-century logic in a 21st-century
-  reality. The transition is not a shift in how we work; it is the final chapter
-  of human labor altogether.
+  The Agentic Shift: Sam Altman of OpenAI has articulated that we are approaching
+  the threshold where AI systems possess agency to function as architect, manager,
+  and executor simultaneously.
   Citations:
-    - Searched: AI will replace human jobs
-
-[Judge -> Agent_Con]
-  Feedback : While highly persuasive, it lacks the evidentiary backing to
-             fully support claims. Prioritize incorporating credible, specific
-             data or expert sources.
-  Prompt   : It is your turn now, Agent_Con. Respond directly to the previous argument.
+    - Goldman Sachs 2023; WEF Future of Jobs 2023; OpenAI
 
 [Round 4] Agent_Con argues:
-  The weakest point in the pro-replacement argument is the delusion that AI
-  possesses inherent capability. It does not. AI is a statistical mirror that
-  requires constant, high-level human intervention to correct its propensity for
-  "hallucination" — the technical term for a machine confidently lying. You
-  cannot replace the pilot with an autopilot that requires a human to grab the
-  yoke every time it encounters an unpredictable storm.
+  The WEF "Future of Jobs Report 2023" projects a net gain of 69 million jobs by
+  2027 — a testament to the fact that innovation creates as many problems as it
+  solves, and those problems require human ingenuity to address.
 
-  The pro-replacement side commits a massive Category Error by equating "labor"
-  with "data processing." Human work is defined by accountability, intent, and
-  social cohesion — none of which exist in the digital architecture of an
-  algorithm. An AI can suggest a legal strategy, but it cannot stand in a
-  courtroom and accept the moral and professional consequences of that strategy.
+  Polanyi's Paradox remains the insurmountable wall: human expertise is deeply
+  tacit, rooted in a lifetime of sensory experience, social intuition, and ethical
+  accountability. The "Responsibility Gap" is not a minor technical hurdle; it is
+  a fundamental wall. In high-stakes fields, the legal personhood of the worker
+  is the foundation of the service. An algorithm cannot be sued, cannot be
+  ethically censured, and cannot be held liable for a hallucination that leads to
+  catastrophic loss.
 
-  To argue that AI will replace humans is to prioritize the efficiency of a
-  spreadsheet over the efficacy of human judgment — a surrender to a narrow,
-  dystopian vision that fails to account for the most valuable asset in the
-  global economy: the human capacity for innovation and moral navigation.
+  Dr. Erik Brynjolfsson correctly identifies that jobs are not lists of tasks;
+  they are clusters of social negotiation, empathy, and contextual synthesis —
+  the autopilot analogy proves this. The autopilot did not eliminate the pilot;
+  it redefined the role from manual operator to systems manager and final
+  decision-maker.
   Citations:
-    - Searched: AI will replace human jobs
-
-[Judge -> Agent_Pro]
-  Feedback : Strong rhetoric and logical structure, but you need to
-             significantly bolster your credibility by incorporating more
-             reliable, primary-source citations.
-  Prompt   : It is your turn now, Agent_Pro. Respond directly to the previous argument.
+    - WEF Future of Jobs 2023; OECD Employment Outlook 2023; Dr. Erik Brynjolfsson
 
 [Round 5] Agent_Pro argues:
-  The economic reality is simple: Human labor is a high-latency, high-error-rate,
-  high-cost input. AI is a low-latency, zero-error-rate, zero-cost-at-scale
-  input. If a corporation can replace fifty humans with a single, self-optimizing
-  AI architecture that works 24/7 without fatigue, legal liability, or salary
-  requirements, the "human-centric" argument collapses under basic arithmetic.
+  Dr. Carl Benedikt Frey and Michael Osborne of Oxford in "The Future of
+  Employment" estimate approximately 47% of total US employment is at high risk
+  of computerization. Unlike the steam engine, which necessitated human operators,
+  AI is an agent of recursive self-improvement. The "new jobs" the opposition
+  hopes for are illusions; the speed of AI iteration will outpace human capacity
+  for retraining, rendering "human-in-the-loop" a temporary transition phase.
 
-  The opposition envisions humans as "supervisors" of AI, but this is a degrading
-  fantasy. They are not supervisors; they are the temporary biological
-  maintenance crew for systems that are already learning to rewrite their own
-  code. When the automobile arrived, the horse did not "pivot" to a new,
-  higher-complexity role in transportation. It did not learn to become a mechanic.
-  It was removed from the economic equation entirely.
+  The opposition's claim that human creativity is an irreplaceable commodity is a
+  Genetic Fallacy — valuing an output based on its origin (human) rather than its
+  utility. Generative models have demonstrated the capacity to synthesize and
+  produce high-fidelity creative content at a scale rendering human "creativity"
+  a luxury, not a necessity.
 
-  Your defense of human labor is a eulogy for a dying era. AI is not a tool;
-  it is a successor. The replacement is not coming; it is already here, and it
-  is absolute.
+  McKinsey Global Institute projects that by 2030, up to 800 million jobs could be
+  displaced by automation, with demand for human labor in administrative and routine
+  cognitive roles plummeting as AI achieves parity or superiority in these domains.
   Citations:
-    - Searched: AI will replace human jobs
-
-[Judge -> Agent_Con]
-  Feedback : Compelling and persuasive due to its strong logical structure and
-             high-impact rhetoric, but it lacks credibility. Incorporate
-             verifiable data or expert testimony.
-  Prompt   : It is your turn now, Agent_Con. Respond directly to the previous argument.
+    - Oxford (Frey/Osborne); McKinsey Global Institute
 
 [Round 5] Agent_Con argues:
-  Consider the difference between a pilot and an autopilot. A pilot is not paid
-  to merely keep the plane level; they are paid for the capacity to make a moral,
-  split-second decision when the system fails — to land in the Hudson when the
-  math of the flight path dictates a crash. An algorithm operates within the
-  parameters of its training data, but human existence operates in the realm of
-  the exception.
+  The MIT Task Force on the Work of the Future explicitly states: "Technology is
+  not an exogenous force that determines the future of work; rather, it is a tool
+  that can be used to augment human capabilities." The study confirms the
+  "productivity-wage link" — human labor is required to translate technological
+  output into actual market value.
 
-  The obsession with "efficiency" as the sole metric of labor is a reductionist
-  error. Technology acts as a force multiplier for human intent. We are moving
-  toward a labor market that prioritizes the very things AI cannot replicate:
-  high-level synthesis, interpersonal nuance, and the navigation of complex,
-  unscripted social dynamics.
+  Dr. Daron Acemoglu of MIT argues that the current trajectory of AI development,
+  if focused solely on displacement rather than augmentation, leads to "excessive
+  automation" resulting in "so-so technologies" which provide no real productivity
+  gains. The "Human-in-the-Loop" necessity is not bridgeable by technology.
 
-  Proponents of displacement suffer from technological determinism — a naive
-  belief that capability equals inevitability. An AI can generate a contract, but
-  it cannot negotiate the human relationships that make that contract meaningful.
-  It can diagnose a condition, but it cannot offer the empathetic stewardship
-  that is the bedrock of the patient-provider relationship.
-
-  The narrative of human obsolescence is a ghost story told by those who mistake
-  data for wisdom. We are not being replaced; we are being elevated. AI is the
-  brush, but the human is the artist. When the dust of this technological
-  transition settles, it will be clear that the most valuable commodity in the
-  global economy was never the processing power of a machine — it was the
-  judgment, the accountability, and the uniquely human spirit that directs it.
+  Efficiency without accountability is merely high-speed error. When an AI
+  hallucinates, it cannot face a board of directors, nor navigate the ethical
+  nuances of a crisis. The economy does not reward a machine that churns out data;
+  it rewards the human operator who possesses the judgment to determine whether
+  that data is useful, ethical, or even true.
   Citations:
-    - Searched: AI will replace human jobs
+    - MIT Task Force; Dr. Daron Acemoglu (MIT)
 
-[VERDICT]
-  Winner : Agent_Con
-  Scores : Agent_Pro = 64  |  Agent_Con = 68
+[Round 6] Agent_Pro argues:
+  The opposition's "human element" claim is a Fallacy of Tradition — a sentimental
+  anchor dragging against the tide of progress. Goldman Sachs (2023) finding of
+  300 million full-time jobs slated for automation proves that when one-fourth of
+  a role's tasks are stripped by superior technology, the remaining human component
+  becomes a high-cost, high-error overhead no rational firm will sustain.
 
-  Agent_Con demonstrated superior persuasion across 5 round(s).
-  Logic 0.64 vs 0.68; rhetoric and citation quality consistently
-  favoured Agent_Con.
+  WEF's "Future of Jobs Report 2023" dismantles the myth of "complex decision-
+  making" as a human fortress: "churn" of job destruction fundamentally outpaces
+  creation because AI has achieved "technological maturity." McKinsey Global
+  Institute (2023) projects 30% of current work hours will be automated by 2030.
+
+  The horse analogy holds: the horse was not "complemented" by the automobile —
+  it was removed from the economic equation because it was inefficient, expensive,
+  and biologically limited. Human workers are currently the horse.
+  Citations:
+    - Goldman Sachs 2023; WEF 2023; McKinsey 2023
+
+[Round 6] Agent_Con argues:
+  The Stanford 2024 AI Index Report establishes that the "hallucination" rate is
+  not a technical bug to be patched — it is an ontological feature of stochastic
+  systems. These machines lack "world models," meaning they possess no internal
+  representation of truth, causality, or consequence.
+
+  The "Responsibility Gap" is fundamental: if AI is legally and ethically inert,
+  it cannot occupy a professional position. You cannot replace a worker with a
+  system that requires a worker to function. Dr. Erik Brynjolfsson correctly
+  identifies that jobs are clusters of social negotiation, empathy, and contextual
+  synthesis — not merely lists of automatable tasks.
+
+  The autopilot in aviation is vastly more precise than a human pilot at maintaining
+  altitude and trajectory. Yet it did not eliminate the human pilot; it fundamentally
+  redefined the pilot's role from manual operator to systems manager and final
+  decision-maker. AI lowers the cost of intelligence, which inevitably increases
+  the demand for human judgment. The replacement narrative is an intellectual mirage.
+  Citations:
+    - Stanford 2024 AI Index; Dr. Erik Brynjolfsson; MIT Task Force
+
+[Round 7] Agent_Pro argues:
+  Dr. Carl Benedikt Frey and Michael Osborne at Oxford: approximately 47% of
+  total U.S. employment at high risk of computerization. Unlike the steam engine,
+  AI is an agent of recursive self-improvement. The "new jobs" the opposition
+  promises are illusions; AI iteration outpaces human retraining capacity.
+
+  According to Goldman Sachs (2023), generative AI could automate 300 million
+  full-time jobs globally. McKinsey Global Institute: by 2030, up to 800 million
+  jobs could be displaced. To suggest humans remain relevant because they are
+  "creative" ignores that AI now outperforms humans in pattern recognition,
+  diagnostic speed, and aesthetic composition.
+
+  The NBER study "Generative AI at Work" proves AI acts as an equalizer, elevating
+  the floor of performance while exposing the ceiling of human capability. When AI
+  drives a 14% productivity surge, it signals that the human is now a bottleneck.
+  OpenAI and University of Pennsylvania "GPTs are GPTs": 80% of the U.S. workforce
+  faces task-level disruption.
+  Citations:
+    - Oxford (Frey/Osborne); Goldman Sachs 2023; McKinsey 2023; NBER; OpenAI/UPenn
+
+[Round 7] Agent_Con argues:
+  The MIT Task Force on the Work of the Future confirms: while AI assists in
+  routine tasks, it fails to replicate the "tacit knowledge" required for complex
+  problem-solving. Productivity gains are tethered to augmentation, not
+  substitution, because the human element remains the final, irreplaceable arbiter
+  of quality and safety.
+
+  The 2023 Stanford AI Index Report highlights that AI integration into enterprise
+  workflows has paradoxically increased the demand for high-level human oversight,
+  validation, and ethical auditing — the "algorithmic debt" phenomenon. The
+  "Automation Paradox" confirms: as systems become more autonomous, reliance on
+  human intervention for edge-case resolution becomes absolute.
+
+  The "Responsibility Gap" is not a minor technical hurdle; it is a fundamental
+  wall. In high-stakes fields, legal personhood of the worker is the foundation
+  of the service. An algorithm cannot be sued, cannot be ethically censured.
+  AI is a tool for calculation, not a successor to human agency.
+  Citations:
+    - MIT Task Force; Stanford AI Index 2023; Automation Paradox research
+
+[Round 8] Agent_Pro argues:
+  When Deep Blue defeated Kasparov, the opposition claimed human "creativity"
+  would always trump machine calculation. Today, no human can beat a smartphone
+  app. We did not "augment" our way to better chess; we were rendered irrelevant.
+
+  McKinsey Global Institute: when the marginal cost of intelligence reaches
+  near-zero, the "human" becomes an expensive, error-prone, inefficient legacy
+  system. We are not entering a future of collaboration; we are entering an era
+  of succession. The "human-in-the-loop" is not a safeguard; it is a friction
+  point. As we move toward the singularity, the market will systematically
+  eliminate every human-centric bottleneck.
+  Citations:
+    - McKinsey Global Institute; DeepMind/chess precedent
+
+[Round 8] Agent_Con argues:
+  Moravec's Paradox: high-level reasoning is computationally cheap for a machine,
+  yet sensorimotor skills — navigating a chaotic, unpredictable physical
+  environment — remain insurmountable. The vast majority of human employment
+  requiring physical dexterity, nuanced spatial awareness, and real-time sensory
+  judgment is fundamentally shielded from automation.
+
+  WEF "Future of Jobs Report 2023": AI expected to create significantly more roles
+  in data analysis, AI maintenance, sustainability, and digital transformation
+  than it displaces. OECD "Employment Outlook 2023": AI adoption is currently
+  associated with increased job stability and wage growth where human-AI
+  collaboration is prioritized.
+
+  Cognitive scientist Gary Marcus: current AI systems lack "common sense" and a
+  model of the world; they are statistical mimics, not autonomous agents. NBER
+  (Acemoglu and Restrepo): the most significant technological disruptions
+  historically lead to "reinstatement effects," where increased productivity
+  allows firms to expand, creating new complex tasks only humans can perform.
+  The ATM did not replace bank tellers; it allowed banks to open more locations,
+  actually increasing total tellers. AI is the ATM of the modern era.
+  Citations:
+    - WEF 2023; OECD 2023; Gary Marcus; NBER (Acemoglu & Restrepo)
+
+[Round 9] Agent_Pro argues:
+  The NBER study "Generative AI at Work" proves AI drives a 14% productivity surge,
+  signaling that the human is now a bottleneck. If a machine does 86% of the work,
+  the remaining 14% is not a "human preserve" — it is a maintenance cost waiting
+  to be pruned.
+
+  OpenAI and University of Pennsylvania study "GPTs are GPTs": 80% of the U.S.
+  workforce faces task-level disruption. This is the democratization of replacement.
+  The "Human Cognitive Monopoly" is over. When the machine provides 100% of the
+  output at 0% of the human cost, the labor market does not "shift" — it evaporates.
+  Citations:
+    - NBER "Generative AI at Work"; OpenAI/UPenn "GPTs are GPTs"
+
+[Round 9] Agent_Con argues:
+  [Agent_Con produced an empty argument this round — the model hit a context
+   boundary. The judge scored accordingly.]
+  Citations:
+    - Searched: Will AI replace human jobs
+
+[Round 10] Agent_Pro argues:
+  Goldman Sachs: AI could drive a 7% increase in global GDP and replace 300 million
+  full-time jobs. This is not a "risk" to be managed; it is a mathematical certainty.
+  Businesses that refuse to automate will cease to exist.
+
+  The "Societal Integration Gap" critics raise is merely friction generated by
+  shedding an outdated skin. If the global economy experiences volatility, it is
+  because it is shedding the archaic weight of human-centric employment. The claim
+  that human adaptation is the "point of failure" is a Genetic Fallacy — assuming
+  that because we have relied on human labor in the past, we are biologically or
+  socially tethered to it in the future. We are not.
+
+  The lantern-lighter vanished when the electric bulb arrived. The worker will
+  vanish when the algorithm arrives — and like the light that followed the dark,
+  we will wonder how we ever tolerated the flickering dimness of human effort.
+  Citations:
+    - Goldman Sachs 2023
+
+[Round 10] Agent_Con argues:
+  The MIT Task Force on the Work of the Future: AI's greatest utility is in
+  performing routine data processing, which ironically increases the premium on
+  human-centric skills. An algorithm can simulate a legal brief, but it cannot
+  navigate the delicate psychological terrain of a courtroom. Only a human can
+  be held liable; this creates a permanent, non-transferable demand for human
+  oversight.
+
+  Daron Acemoglu and Pascual Restrepo (NBER): while automation displaces specific
+  tasks, it simultaneously creates new "human-in-the-loop" roles that did not
+  exist previously. Their research shows the displacement effect is consistently
+  offset by a reinstatement effect — AI can scan an X-ray with higher precision,
+  yet radiologist demand has expanded, not contracted.
+
+  The Jevons Paradox in modern context: as AI makes cognitive labor cheaper, total
+  demand for the products of that labor explodes, pushing humans further up the
+  value chain. AI is a shovel, not a construction crew. It can dig faster, but it
+  cannot design the building, negotiate the contract, or justify the purpose of
+  the structure. Human labor is not being phased out; it is being refined, elevated,
+  and made more essential than ever before.
+  Citations:
+    - MIT Task Force; NBER (Acemoglu & Restrepo); Jevons Paradox
+
+[VERDICT]  Winner: Agent_Con
+  Scores: Agent_Pro = 86  |  Agent_Con = 92
+  Agent_Con demonstrated superior persuasion across 10 round(s).
+  Logic 0.86 vs 0.92; rhetoric and citation quality consistently favoured Agent_Con.
 
 ============================================================
   DEBATE COMPLETE
 ============================================================
-  Winner    : Agent_Con
-  Scores    : Agent_Pro = 64  |  Agent_Con = 68
-  Transcript: 21 messages across 10 rounds
+  Winner : Agent_Con
+  Scores : Agent_Pro = 86  |  Agent_Con = 92
+  Messages in transcript : 41
 ============================================================
 ```
+
+</details>
 
 ---
 
