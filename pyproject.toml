@@ -18,6 +18,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "ipykernel>=7.2.0",
+    "jupyter>=1.1.1",
     "matplotlib>=3.10.9",
     "pandas>=2.3.3",
     "pytest>=8.0.0",
