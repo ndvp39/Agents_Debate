@@ -1,0 +1,12 @@
+{
+  "version": "1.00",
+  "logging": {
+    "max_files": 20,
+    "max_lines_per_file": 500,
+    "log_dir": "logs/",
+    "level": "INFO",
+    "file_prefix": "debate_log_",
+    "file_extension": ".log",
+    "sequence_max": 999
+  }
+}
