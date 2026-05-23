@@ -121,9 +121,9 @@
 
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
-| 8.1 | Write tests for `sdk/sdk.py` | Critical | 🔴 Not Started | Dev | Tests cover start_debate, get_transcript, get_verdict, get_cost_summary |
-| 8.2 | Implement `sdk/sdk.py` (DebateSDK) | Critical | 🔴 Not Started | Dev | Tests pass; all business logic through SDK; ≤150 lines |
-| 8.3 | Implement `src/main.py` (terminal menu) | High | 🔴 Not Started | Dev | Menu works; delegates only to SDK; no business logic; ≤150 lines |
+| 8.1 | Write tests for `sdk/sdk.py` | Critical | ✅ Done | Dev | Tests cover start_debate, get_transcript, get_verdict, get_cost_summary |
+| 8.2 | Implement `sdk/sdk.py` (DebateSDK) | Critical | ✅ Done | Dev | Tests pass; all business logic through SDK; ≤150 lines |
+| 8.3 | Implement `src/main.py` (terminal menu) | High | ✅ Done | Dev | Menu works; delegates only to SDK; no business logic; ≤150 lines |
 
 ---
 
@@ -165,7 +165,7 @@
 | 5 — Judge agent | 4 | 4 ✅ |
 | 6 — Debater agents | 10 | 10 ✅ |
 | 7 — Orchestrator | 2 | 2 ✅ |
-| 8 — SDK + CLI | 3 | 0 |
+| 8 — SDK + CLI | 3 | 3 ✅ |
 | 9 — Quality gates | 6 | 0 |
 | 10 — Deliverables | 6 | 0 |
-| **Total** | **70** | **55** |
+| **Total** | **70** | **58** |
