@@ -1,12 +1,9 @@
 """Tests for debate.services.orchestrator — TDD RED phase."""
 
-from unittest.mock import MagicMock, call
-
-import pytest
+from unittest.mock import MagicMock
 
 from debate.services.orchestrator import DebateOrchestrator, DebateResult
 from debate.shared.constants import AgentID, MessageType
-
 
 # ---------------------------------------------------------------------------
 # Helpers

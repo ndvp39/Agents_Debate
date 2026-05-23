@@ -1,8 +1,8 @@
 """DebateOrchestrator — mediates all message routing between the three agent processes."""
 
+import contextlib
 import subprocess
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from debate.agents.watchdog import Watchdog
 from debate.ipc.channel import IPCChannel
@@ -31,8 +31,8 @@ class DebateOrchestrator:
 
     def __init__(
         self,
-        channel: Optional[IPCChannel] = None,
-        watchdog: Optional[Watchdog] = None,
+        channel: IPCChannel | None = None,
+        watchdog: Watchdog | None = None,
     ) -> None:
         self._channel = channel or IPCChannel()
         self._watchdog = watchdog
@@ -111,9 +111,7 @@ class DebateOrchestrator:
 
     def _shutdown(self, *procs) -> None:
         for proc in procs:
-            try:
+            with contextlib.suppress(Exception):
                 proc.terminate()
-            except Exception:
-                pass
         if self._watchdog:
             self._watchdog.stop()

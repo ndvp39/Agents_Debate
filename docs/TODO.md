@@ -131,12 +131,12 @@
 
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
-| 9.1 | Run `uv run pytest --cov` | Critical | 🔴 Not Started | Dev | Coverage ≥ 85%; no test failures |
-| 9.2 | Run `uv run ruff check` | Critical | 🔴 Not Started | Dev | Zero violations |
-| 9.3 | Run full integration test (mocked LLM) | Critical | 🔴 Not Started | Dev | Complete debate runs start-to-finish; verdict produced |
-| 9.4 | Verify Watchdog restarts hung agent | High | 🔴 Not Started | Dev | Simulated hang triggers kill + restart; debate continues |
-| 9.5 | Verify Gatekeeper queues on overflow | High | 🔴 Not Started | Dev | Overflow goes to queue; no crash; drain works |
-| 9.6 | Verify no hardcoded values (code review) | Critical | 🔴 Not Started | Dev | Zero hardcoded API URLs, keys, limits in source |
+| 9.1 | Run `uv run pytest --cov` | Critical | ✅ Done | Dev | Coverage ≥ 85%; no test failures |
+| 9.2 | Run `uv run ruff check` | Critical | ✅ Done | Dev | Zero violations |
+| 9.3 | Run full integration test (mocked LLM) | Critical | ✅ Done | Dev | Complete debate runs start-to-finish; verdict produced |
+| 9.4 | Verify Watchdog restarts hung agent | High | ✅ Done | Dev | Simulated hang triggers kill + restart; debate continues |
+| 9.5 | Verify Gatekeeper queues on overflow | High | ✅ Done | Dev | Overflow goes to queue; no crash; drain works |
+| 9.6 | Verify no hardcoded values (code review) | Critical | ✅ Done | Dev | Zero hardcoded API URLs, keys, limits in source |
 
 ---
 
@@ -166,6 +166,6 @@
 | 6 — Debater agents | 10 | 10 ✅ |
 | 7 — Orchestrator | 2 | 2 ✅ |
 | 8 — SDK + CLI | 3 | 3 ✅ |
-| 9 — Quality gates | 6 | 0 |
+| 9 — Quality gates | 6 | 6 ✅ |
 | 10 — Deliverables | 6 | 0 |
-| **Total** | **70** | **58** |
+| **Total** | **70** | **64** |

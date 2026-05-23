@@ -1,6 +1,7 @@
 """BaseDebater — 7-skill pipeline with anti-sycophancy enforcement for both debater agents."""
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from debate.agents.base_agent import BaseAgent
 from debate.agents.debaters.skills import (

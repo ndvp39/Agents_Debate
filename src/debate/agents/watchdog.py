@@ -2,8 +2,8 @@
 
 import subprocess
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 from debate.shared.exceptions import WatchdogRestartError
 

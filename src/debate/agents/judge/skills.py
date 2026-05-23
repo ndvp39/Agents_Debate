@@ -1,10 +1,16 @@
 """Judge agent skills — EnforceDebateMechanics, EvaluatePersuasionScore, RouteTurn, DeclareVerdict."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from debate.ipc.schemas import ArgumentMessage, ReprimandMessage, RoutingMessage, VerdictMessage
-from debate.shared.constants import AgentID, MIN_JUSTIFICATION_LENGTH, SCORE_WEIGHT_CITATION, SCORE_WEIGHT_LOGIC, SCORE_WEIGHT_RHETORIC
+from debate.shared.constants import (
+    MIN_JUSTIFICATION_LENGTH,
+    SCORE_WEIGHT_CITATION,
+    SCORE_WEIGHT_LOGIC,
+    SCORE_WEIGHT_RHETORIC,
+    AgentID,
+)
 from debate.shared.exceptions import InsufficientDataError
 
 _AGREEMENT_PHRASES = (

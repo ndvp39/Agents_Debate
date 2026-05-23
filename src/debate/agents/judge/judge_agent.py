@@ -1,6 +1,6 @@
 """JudgeAgent — moderates the debate, scores arguments, declares the verdict."""
 
-from typing import Callable
+from collections.abc import Callable
 
 from debate.agents.base_agent import BaseAgent
 from debate.agents.judge.skills import (
@@ -54,9 +54,6 @@ class JudgeAgent(BaseAgent):
 
     def process_argument(self, msg: ArgumentMessage) -> None:
         """Enforce mechanics; if valid, evaluate and route to next agent."""
-        opponent = AgentID.CON if msg.agent_id == AgentID.PRO else AgentID.PRO
-        last_opponent_arg = self._last_arguments.get(opponent, "")
-
         reprimand = self._enforce.run(
             msg,
             round_number=self._round + 1,

@@ -1,9 +1,8 @@
 """Tests for debate.shared.constants — written before implementation (TDD RED)."""
 
-import pytest
 from debate.shared.constants import (
-    REQUIRED_CONFIG_VERSION,
     MIN_JUSTIFICATION_LENGTH,
+    REQUIRED_CONFIG_VERSION,
     SCORE_WEIGHT_CITATION,
     SCORE_WEIGHT_LOGIC,
     SCORE_WEIGHT_RHETORIC,

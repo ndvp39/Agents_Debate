@@ -1,7 +1,9 @@
 """Tests for debate.shared.gatekeeper — written before implementation (TDD RED)."""
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
 from debate.shared.gatekeeper import (
     ApiGatekeeper,
     BackpressureError,

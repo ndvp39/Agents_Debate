@@ -2,16 +2,13 @@
 
 import json
 from io import BytesIO
-from unittest.mock import MagicMock
 
 import pytest
 
 from debate.agents.judge.judge_agent import JudgeAgent
-from debate.agents.judge.skills import PersuasionScore
 from debate.ipc.schemas import ArgumentMessage
 from debate.shared.constants import AgentID, MessageType
 from debate.shared.exceptions import InsufficientDataError
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -141,7 +138,7 @@ def test_declare_verdict_sends_verdict_message():
     agent.declare_verdict()
     # verdict is the last JSON line written
     buf.seek(0)
-    lines = [l for l in buf.read().decode("utf-8").splitlines() if l.strip()]
+    lines = [ln for ln in buf.read().decode("utf-8").splitlines() if ln.strip()]
     verdict = json.loads(lines[-1])
     assert verdict["message_type"] == MessageType.VERDICT
 
@@ -152,7 +149,7 @@ def test_declare_verdict_no_ties():
     agent.process_argument(_arg(AgentID.CON, round_=1))
     agent.declare_verdict()
     buf.seek(0)
-    lines = [l for l in buf.read().decode("utf-8").splitlines() if l.strip()]
+    lines = [ln for ln in buf.read().decode("utf-8").splitlines() if ln.strip()]
     verdict = json.loads(lines[-1])
     vals = list(verdict["scores"].values())
     assert vals[0] != vals[1]

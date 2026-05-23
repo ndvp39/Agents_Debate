@@ -1,7 +1,7 @@
 """WebSearchTool — retrieves citations via an injected search callable (ApiGatekeeper-wrapped)."""
 
 import sys
-from typing import Callable
+from collections.abc import Callable
 
 
 class WebSearchTool:

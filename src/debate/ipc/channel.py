@@ -6,7 +6,7 @@ import threading
 from typing import Any
 
 from debate.ipc.schemas import message_from_dict
-from debate.shared.exceptions import IPCParseError, IPCSchemaError, IPCTimeoutError
+from debate.shared.exceptions import IPCParseError, IPCTimeoutError
 
 
 class IPCChannel:

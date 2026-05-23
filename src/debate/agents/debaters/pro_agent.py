@@ -1,6 +1,7 @@
 """ProAgent — debater arguing completely FOR the topic."""
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from debate.agents.debaters.base_debater import BaseDebater
 from debate.shared.constants import AgentID, Stance

@@ -11,13 +11,12 @@ from debate.agents.judge.skills import (
 )
 from debate.ipc.schemas import ArgumentMessage
 from debate.shared.constants import (
-    AgentID,
     SCORE_WEIGHT_CITATION,
     SCORE_WEIGHT_LOGIC,
     SCORE_WEIGHT_RHETORIC,
+    AgentID,
 )
 from debate.shared.exceptions import InsufficientDataError
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -125,7 +124,8 @@ def test_enforce_no_fallacy_check_on_round_1():
 # ---------------------------------------------------------------------------
 
 def test_evaluate_returns_persuasion_score():
-    llm_call = lambda arg, cit: {"logical_consistency": 0.8, "citation_strength": 0.7, "rhetoric_quality": 0.9}
+    def llm_call(arg, cit):
+        return {"logical_consistency": 0.8, "citation_strength": 0.7, "rhetoric_quality": 0.9}
     score = EvaluatePersuasionScore().run(_arg(), llm_call)
     assert isinstance(score, PersuasionScore)
     assert score.agent_id == AgentID.PRO
@@ -152,20 +152,23 @@ def test_evaluate_calls_llm_with_argument_and_citations():
 
 def test_route_turn_produces_routing_message():
     from debate.ipc.schemas import RoutingMessage  # noqa: PLC0415
-    llm_call = lambda s: "Strong argument noted."
+    def llm_call(s):
+        return "Strong argument noted."
     routing = RouteTurn().run(_score(), AgentID.CON, llm_call)
     assert isinstance(routing, RoutingMessage)
     assert routing.target_agent == AgentID.CON
 
 
 def test_route_turn_respects_next_agent():
-    llm_call = lambda s: "Feedback."
+    def llm_call(s):
+        return "Feedback."
     routing = RouteTurn().run(_score(), AgentID.PRO, llm_call)
     assert routing.target_agent == AgentID.PRO
 
 
 def test_route_turn_includes_llm_feedback():
-    llm_call = lambda s: "Outstanding rhetoric and solid citations."
+    def llm_call(s):
+        return "Outstanding rhetoric and solid citations."
     routing = RouteTurn().run(_score(), AgentID.CON, llm_call)
     assert "Outstanding" in routing.judge_feedback
 
@@ -198,7 +201,6 @@ def test_declare_verdict_scores_differ():
 
 def test_declare_verdict_tie_breaker_fires():
     # Equal weighted scores → tie-breaker must pick a winner
-    s = _score(logic=0.7, citation=0.7, rhetoric=0.7)
     pro_scores = [PersuasionScore(AgentID.PRO, 1, 0.7, 0.7, 0.7)]
     con_scores = [PersuasionScore(AgentID.CON, 1, 0.7, 0.7, 0.7)]
     verdict = DeclareVerdict().run(pro_scores, con_scores)

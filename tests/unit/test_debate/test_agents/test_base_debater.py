@@ -4,12 +4,8 @@ import json
 from io import BytesIO
 from unittest.mock import MagicMock
 
-import pytest
-
 from debate.agents.debaters.base_debater import BaseDebater
-from debate.agents.debaters.web_search_tool import WebSearchTool
 from debate.shared.constants import AgentID, MessageType, Stance
-
 
 # ---------------------------------------------------------------------------
 # Concrete subclass for testing (BaseDebater is abstract)
@@ -53,10 +49,6 @@ def test_web_search_tool_registered():
 
 
 def test_seven_argument_skills_registered():
-    from debate.agents.debaters.skills import (  # noqa: PLC0415
-        AdaptStrategy, AnalyzeOpponent, ApplyRhetoric,
-        BuildCounterArgument, CraftOpening, DetectFallacies, SynthesizeEvidence,
-    )
     agent, *_ = _make_debater()
     skill_types = [type(s).__name__ for s in agent._skills]
     for cls_name in ("CraftOpening", "AnalyzeOpponent", "DetectFallacies",
@@ -99,8 +91,10 @@ def test_round_1_argument_round_number_is_1():
 def test_round_2_sends_argument_message():
     agent, buf, *_ = _make_debater()
     agent.respond(_routing_msg())  # round 1
-    buf.seek(0); buf.read()       # consume round 1 output
-    buf.seek(0); buf.truncate(0)  # reset buffer
+    buf.seek(0)
+    buf.read()
+    buf.seek(0)
+    buf.truncate(0)
 
     agent.respond(_routing_msg("Opponent argument for round 2."))
     buf.seek(0)

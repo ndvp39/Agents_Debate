@@ -1,6 +1,6 @@
 """DebateSDK — single public entry point for all debate system operations."""
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from debate.services.orchestrator import DebateOrchestrator, DebateResult
 from debate.shared.exceptions import InsufficientDataError
@@ -25,14 +25,14 @@ class DebateSDK:
 
     def __init__(
         self,
-        orchestrator: Optional[DebateOrchestrator] = None,
-        process_factory: Optional[Callable] = None,
+        orchestrator: DebateOrchestrator | None = None,
+        process_factory: Callable | None = None,
         gatekeeper=None,
     ) -> None:
         self._orchestrator = orchestrator or DebateOrchestrator()
         self._process_factory = process_factory or _null_factory
         self._gatekeeper = gatekeeper
-        self._result: Optional[DebateResult] = None
+        self._result: DebateResult | None = None
 
     # ------------------------------------------------------------------
     # Primary action

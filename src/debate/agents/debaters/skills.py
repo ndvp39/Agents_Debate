@@ -1,6 +1,6 @@
 """Debater skills — 7-skill pipeline for genius-level debate reasoning."""
 
-from typing import Callable
+from collections.abc import Callable
 
 from debate.shared.exceptions import SkillNotApplicableError
 

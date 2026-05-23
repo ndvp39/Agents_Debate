@@ -9,7 +9,6 @@ from debate.services.orchestrator import DebateResult
 from debate.shared.constants import AgentID, MessageType
 from debate.shared.exceptions import InsufficientDataError
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

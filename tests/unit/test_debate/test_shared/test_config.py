@@ -1,7 +1,9 @@
 """Tests for debate.shared.config — written before implementation (TDD RED)."""
 
 import json
+
 import pytest
+
 from debate.shared.config import ConfigError, ConfigManager
 
 
