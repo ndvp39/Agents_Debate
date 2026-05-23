@@ -56,14 +56,15 @@ def _make_channel(receive_sequence):
     return channel
 
 
-def _run(rounds=2, receive_sequence=None):
+def _run(rounds=1, receive_sequence=None):
     if receive_sequence is None:
-        # Default: N rounds without reprimands + verdict
+        # Default: N complete rounds (Pro turn + Con turn each) without reprimands + verdict
         seq = []
-        for i in range(rounds):
-            speaker = AgentID.PRO if i % 2 == 0 else AgentID.CON
-            seq.append(_arg(speaker, i + 1))
-            seq.append(_routing(AgentID.CON if i % 2 == 0 else AgentID.PRO))
+        for r in range(rounds):
+            seq.append(_arg(AgentID.PRO, r + 1))
+            seq.append(_routing(AgentID.CON))
+            seq.append(_arg(AgentID.CON, r + 1))
+            seq.append(_routing(AgentID.PRO))
         seq.append(_verdict())
         receive_sequence = seq
     channel = _make_channel(receive_sequence)
@@ -82,14 +83,19 @@ def test_result_is_debate_result():
 
 
 def test_result_rounds_completed():
-    result, _ = _run(rounds=2)
-    assert result.rounds_completed == 2
+    result, _ = _run(rounds=1)
+    assert result.rounds_completed == 1
+
+
+def test_result_rounds_completed_multi():
+    result, _ = _run(rounds=3)
+    assert result.rounds_completed == 3
 
 
 def test_result_topic_preserved():
     channel = _make_channel([_arg(), _routing(), _arg(AgentID.CON), _routing(AgentID.PRO), _verdict()])
     orch = DebateOrchestrator(channel=channel)
-    result = orch.run("AI and jobs", 2, _proc(), _proc(), _proc())
+    result = orch.run("AI and jobs", 1, _proc(), _proc(), _proc())
     assert result.topic == "AI and jobs"
 
 
@@ -120,10 +126,16 @@ def test_transcript_contains_verdict():
     assert MessageType.VERDICT in types
 
 
+def test_transcript_length_for_1_round():
+    result, _ = _run(rounds=1)
+    # 2 arguments (Pro + Con) + 2 routings + 1 verdict = 5
+    assert len(result.transcript) == 5
+
+
 def test_transcript_length_for_2_rounds():
     result, _ = _run(rounds=2)
-    # 2 arguments + 2 routings + 1 verdict = 5
-    assert len(result.transcript) == 5
+    # 4 arguments + 4 routings + 1 verdict = 9
+    assert len(result.transcript) == 9
 
 
 # ---------------------------------------------------------------------------
@@ -131,18 +143,18 @@ def test_transcript_length_for_2_rounds():
 # ---------------------------------------------------------------------------
 
 def test_reprimand_does_not_advance_round():
-    # round 1: arg from pro, reprimand, arg from pro again, routing, arg from con, routing, verdict
+    # 1 complete round: Pro gets reprimanded once, retries, then Con speaks
     seq = [
-        _arg(AgentID.PRO, 1),   # first attempt
+        _arg(AgentID.PRO, 1),   # first attempt — reprimanded
         _reprimand(AgentID.PRO),
-        _arg(AgentID.PRO, 1),   # retry
-        _routing(AgentID.CON),  # round 1 done
-        _arg(AgentID.CON, 2),
-        _routing(AgentID.PRO),  # round 2 done
+        _arg(AgentID.PRO, 1),   # retry — accepted
+        _routing(AgentID.CON),
+        _arg(AgentID.CON, 1),   # Con speaks — completes round 1
+        _routing(AgentID.PRO),
         _verdict(),
     ]
-    result, _ = _run(rounds=2, receive_sequence=seq)
-    assert result.rounds_completed == 2
+    result, _ = _run(rounds=1, receive_sequence=seq)
+    assert result.rounds_completed == 1
     assert result.reprimand_count == 1
 
 
@@ -152,11 +164,11 @@ def test_reprimand_increments_reprimand_count():
         _reprimand(AgentID.PRO),
         _arg(AgentID.PRO, 1),
         _routing(AgentID.CON),
-        _arg(AgentID.CON, 2),
+        _arg(AgentID.CON, 1),
         _routing(AgentID.PRO),
         _verdict(),
     ]
-    result, _ = _run(rounds=2, receive_sequence=seq)
+    result, _ = _run(rounds=1, receive_sequence=seq)
     assert result.reprimand_count == 1
 
 
@@ -168,11 +180,11 @@ def test_multiple_reprimands_counted():
         _reprimand(AgentID.PRO),
         _arg(AgentID.PRO, 1),
         _routing(AgentID.CON),
-        _arg(AgentID.CON, 2),
+        _arg(AgentID.CON, 1),
         _routing(AgentID.PRO),
         _verdict(),
     ]
-    result, _ = _run(rounds=2, receive_sequence=seq)
+    result, _ = _run(rounds=1, receive_sequence=seq)
     assert result.reprimand_count == 2
 
 
@@ -184,7 +196,7 @@ def test_all_processes_terminated_after_run():
     pro, con, judge = _proc(), _proc(), _proc()
     channel = _make_channel([_arg(), _routing(), _arg(AgentID.CON), _routing(AgentID.PRO), _verdict()])
     orch = DebateOrchestrator(channel=channel)
-    orch.run("AI and jobs", 2, pro, con, judge)
+    orch.run("AI and jobs", 1, pro, con, judge)
     pro.terminate.assert_called()
     con.terminate.assert_called()
     judge.terminate.assert_called()
@@ -194,7 +206,7 @@ def test_verdict_request_sent_to_judge_after_loop():
     channel = _make_channel([_arg(), _routing(), _arg(AgentID.CON), _routing(AgentID.PRO), _verdict()])
     judge = _proc()
     orch = DebateOrchestrator(channel=channel)
-    orch.run("AI and jobs", 2, _proc(), _proc(), judge)
+    orch.run("AI and jobs", 1, _proc(), _proc(), judge)
     sent_messages = [c.args[1] for c in channel.send.call_args_list]
     types = [m.get("message_type") for m in sent_messages]
     assert "verdict_request" in types
@@ -204,6 +216,6 @@ def test_opening_message_sent_to_pro():
     channel = _make_channel([_arg(), _routing(), _arg(AgentID.CON), _routing(AgentID.PRO), _verdict()])
     pro = _proc()
     orch = DebateOrchestrator(channel=channel)
-    orch.run("AI and jobs", 2, pro, _proc(), _proc())
+    orch.run("AI and jobs", 1, pro, _proc(), _proc())
     first_send = channel.send.call_args_list[0]
     assert first_send.args[0] is pro

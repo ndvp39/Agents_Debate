@@ -24,8 +24,8 @@ def _get_rounds() -> int:
     if not raw:
         return 10
     rounds = int(raw)
-    if rounds < 2:
-        raise ValueError("Rounds must be at least 2 (one turn per debater).")
+    if rounds < 1:
+        raise ValueError("Rounds must be at least 1.")
     return rounds
 
 

@@ -48,7 +48,8 @@ class DebateOrchestrator:
         """Execute the full debate loop and return a DebateResult."""
         transcript: list[dict] = []
         reprimand_count = 0
-        rounds_completed = 0
+        turns_completed = 0      # individual debater turns (Pro or Con)
+        rounds_completed = 0     # complete exchanges (Pro + Con = 1 round)
         verdict: dict = {}
 
         self._register_watchdog(pro_proc, con_proc, judge_proc)
@@ -77,10 +78,13 @@ class DebateOrchestrator:
                     reprimand_count += 1
                     self._channel.send(current_proc, judge_resp)
                 else:
-                    rounds_completed += 1
+                    turns_completed += 1
                     transcript.append(judge_resp)
                     current_proc, next_proc = next_proc, current_proc
                     self._channel.send(current_proc, judge_resp)
+                    # A complete round = one Pro turn + one Con turn (even turns_completed)
+                    if turns_completed % 2 == 0:
+                        rounds_completed += 1
 
             self._channel.send(judge_proc, {"message_type": "verdict_request"})
             verdict = self._channel.receive(judge_proc)
