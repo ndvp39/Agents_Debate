@@ -71,8 +71,14 @@ class EnforceDebateMechanics:
 class EvaluatePersuasionScore:
     """Score one argument on three dimensions via an LLM call."""
 
-    def run(self, msg: ArgumentMessage, llm_call: Callable) -> PersuasionScore:
-        result = llm_call(msg.argument, msg.citations)
+    def run(self, msg: ArgumentMessage, llm_call: Callable, previous_feedback: str = "") -> PersuasionScore:
+        argument = msg.argument
+        if previous_feedback:
+            argument = (
+                f"[JUDGE CONTEXT: You previously instructed this debater: '{previous_feedback}'. "
+                f"Penalize the score if this feedback was ignored.]\n\n{argument}"
+            )
+        result = llm_call(argument, msg.citations)
         return PersuasionScore(
             agent_id=msg.agent_id,
             round=msg.round,
@@ -85,12 +91,20 @@ class EvaluatePersuasionScore:
 class RouteTurn:
     """Produce a routing message directing the next debater."""
 
-    def run(self, score: PersuasionScore, next_agent: str, llm_call: Callable) -> RoutingMessage:
+    def run(self, score: PersuasionScore, next_agent: str, llm_call: Callable, previous_feedback: str = "") -> RoutingMessage:
         feedback = str(llm_call(score))
+        if previous_feedback:
+            prompt = (
+                f"It is your turn now, {next_agent}. Respond directly to the previous argument. "
+                f"REMINDER — The Judge previously instructed you: '{previous_feedback}'. "
+                "You MUST address this directive explicitly. Failure to comply will result in a score penalty."
+            )
+        else:
+            prompt = f"It is your turn now, {next_agent}. Respond directly to the previous argument."
         return RoutingMessage(
             target_agent=next_agent,
             judge_feedback=feedback,
-            prompt_for_next=f"It is your turn now, {next_agent}. Respond directly to the previous argument.",
+            prompt_for_next=prompt,
         )
 
 

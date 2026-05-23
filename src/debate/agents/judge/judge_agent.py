@@ -46,6 +46,7 @@ class JudgeAgent(BaseAgent):
             AgentID.CON: [],
         }
         self._last_arguments: dict[str, str] = {}
+        self._last_feedback_sent: dict[str, str] = {AgentID.PRO: "", AgentID.CON: ""}
         self._round: int = 0
 
     # ------------------------------------------------------------------
@@ -63,13 +64,18 @@ class JudgeAgent(BaseAgent):
             self.send(reprimand.to_dict())
             return
 
-        score = self._evaluate.run(msg, self._evaluate_llm)
+        previous_fb = self._last_feedback_sent.get(msg.agent_id, "")
+        score = self._evaluate.run(msg, self._evaluate_llm, previous_feedback=previous_fb)
         self._scores[msg.agent_id].append(score)
         self._last_arguments[msg.agent_id] = msg.argument
         self._round += 1
 
         next_agent = AgentID.CON if msg.agent_id == AgentID.PRO else AgentID.PRO
-        routing = self._route.run(score, next_agent, self._route_llm)
+        routing = self._route.run(
+            score, next_agent, self._route_llm,
+            previous_feedback=self._last_feedback_sent.get(next_agent, ""),
+        )
+        self._last_feedback_sent[next_agent] = routing.judge_feedback
         self.send(routing.to_dict())
 
     def declare_verdict(self) -> None:

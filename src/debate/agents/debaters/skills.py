@@ -86,12 +86,22 @@ class BuildCounterArgument:
         strategy: dict,
         citations: list,
         llm_call: Callable,
+        judge_feedback: str = "",
     ) -> dict:
         target = strategy.get("target", "opponent's claim")
+        feedback_block = ""
+        if judge_feedback:
+            feedback_block = (
+                f"\n\nJUDGE'S FEEDBACK (MANDATORY): {judge_feedback}\n"
+                "You MUST directly adapt your argument to address this feedback. "
+                "If the Judge asked for specific data, statistics, or citations, you MUST provide them NOW."
+            )
         prompt = (
             f"Stance: {stance}\nTopic: {topic}\nTarget: {target}\n"
             "Construct a devastating counter-argument. Directly address the weakest point. "
-            "Call out any fallacies by name. Never agree or soften your position."
+            "Call out any fallacies by name. Never agree or soften your position. "
+            "You MUST explicitly quote at least one specific statistic, study name, or expert opinion."
+            + feedback_block
         )
         return {"counter_argument": str(llm_call(prompt))}
 
@@ -114,10 +124,19 @@ class SynthesizeEvidence:
 class ApplyRhetoric:
     """Final skill: elevate the argument with classical rhetorical techniques."""
 
-    def run(self, enriched_argument: str, stance: str, round_number: int, llm_call: Callable) -> dict:
+    def run(
+        self,
+        enriched_argument: str,
+        stance: str,
+        round_number: int,
+        llm_call: Callable,
+        judge_feedback: str = "",
+    ) -> dict:
+        mandate = f"\nJUDGE'S MANDATE: {judge_feedback}  Ensure the final argument honors this." if judge_feedback else ""
         prompt = (
             f"Round {round_number} | Stance: {stance}\n"
             f"Refine with ethos, pathos, logos, analogy, and a memorable closing:\n{enriched_argument}\n"
             "Do NOT change factual content or citations."
+            + mandate
         )
         return {"final_argument": str(llm_call(prompt))}

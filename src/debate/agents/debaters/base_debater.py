@@ -68,9 +68,10 @@ class BaseDebater(BaseAgent):
 
     def respond(self, routing_message: dict) -> None:
         """Run the skill pipeline and send an ArgumentMessage."""
+        judge_feedback = routing_message.get("judge_feedback", "")
         self._last_opponent_arg = routing_message.get("prompt_for_next", "")
         current_round = self._round + 1
-        result = self._run_pipeline(current_round)
+        result = self._run_pipeline(current_round, judge_feedback)
         self._round = current_round
         citations = result["citations"] or [f"Searched: {self._topic}"]
         msg = ArgumentMessage(
@@ -85,23 +86,33 @@ class BaseDebater(BaseAgent):
     # Internal
     # ------------------------------------------------------------------
 
-    def _run_pipeline(self, round_number: int) -> dict:
+    def _run_pipeline(self, round_number: int, judge_feedback: str = "") -> dict:
         llm = self._wrapped_llm
         raw = self._web_search.search(self._topic)
 
         if round_number == 1:
             opening = self._craft.run(self._topic, self.STANCE, round_number, llm)
             evidence = self._synthesize.run(opening["opening_statement"], raw)
-            rhetoric = self._rhetoric.run(evidence["enriched_argument"], self.STANCE, round_number, llm)
+            rhetoric = self._rhetoric.run(
+                evidence["enriched_argument"], self.STANCE, round_number, llm, judge_feedback
+            )
             return {"final_argument": rhetoric["final_argument"], "citations": evidence["citations"]}
 
         analysis = self._analyze.run(self._last_opponent_arg, llm)
         fallacies = self._detect.run(self._last_opponent_arg, analysis, llm)
         strategy = self._adapt.run(round_number, 0.5, 0.5, analysis, fallacies)
-        raw2 = self._web_search.search(analysis.get("weakest_point", self._topic))
-        counter = self._build.run(self.STANCE, self._topic, analysis, fallacies, strategy, raw2, llm)
+        # Build a targeted search query from the opponent's weakest claim rather than the generic topic
+        weakest = analysis.get("weakest_point", "") or analysis.get("main_claim", "")
+        search_query = f"evidence statistics: {weakest}" if weakest else self._topic
+        raw2 = self._web_search.search(search_query)
+        counter = self._build.run(
+            self.STANCE, self._topic, analysis, fallacies, strategy, raw2, llm,
+            judge_feedback=judge_feedback,
+        )
         evidence = self._synthesize.run(counter["counter_argument"], raw + raw2)
-        rhetoric = self._rhetoric.run(evidence["enriched_argument"], self.STANCE, round_number, llm)
+        rhetoric = self._rhetoric.run(
+            evidence["enriched_argument"], self.STANCE, round_number, llm, judge_feedback
+        )
         return {"final_argument": rhetoric["final_argument"], "citations": evidence["citations"]}
 
     def _wrapped_llm(self, prompt: str) -> Any:

@@ -13,7 +13,7 @@ def subprocess_factory(topic: str, rounds: int):
     Returns (pro_proc, con_proc, judge_proc) as subprocess.Popen objects.
     The -u flag forces unbuffered I/O so JSON lines arrive immediately.
     """
-    pipe = dict(stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    pipe = {"stdin": subprocess.PIPE, "stdout": subprocess.PIPE}
 
     pro_proc = subprocess.Popen(
         [sys.executable, "-u", str(_SRC_DIR / "pro_runner.py"), "--topic", topic],
