@@ -112,11 +112,11 @@ The orchestrator also serves as the integration point for the Watchdog — it re
 
 ## 8. Success Criteria
 
-- [ ] Running `sdk.start_debate(topic, rounds=10)` completes all 10 rounds and returns a `DebateResult`.
-- [ ] A reprimand from the Judge does not increment the round counter.
-- [ ] A simulated agent hang (sleep > timeout) triggers Watchdog restart; debate resumes.
-- [ ] All three processes are terminated after `DebateResult` is returned.
-- [ ] The full transcript in `DebateResult` contains every message in correct order.
+- [x] Running `sdk.start_debate(topic, rounds=10)` completes all 10 rounds and returns a `DebateResult`.
+- [x] A reprimand from the Judge does not increment the round counter.
+- [x] A simulated agent hang (sleep > timeout) triggers Watchdog restart; debate resumes.
+- [x] All three processes are terminated after `DebateResult` is returned.
+- [x] The full transcript in `DebateResult` contains every message in correct order.
 
 ---
 

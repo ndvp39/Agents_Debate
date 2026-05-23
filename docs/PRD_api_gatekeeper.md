@@ -189,12 +189,12 @@ Every call is logged via `DebateLogger`:
 
 ## 12. Success Criteria
 
-- [ ] All LLM and web-search calls are routed through the gatekeeper (verifiable via logs).
-- [ ] A burst of 35 calls in 1 minute (limit=30) queues 5 calls and processes them after the window resets.
-- [ ] A transient HTTP 429 triggers retry with exponential back-off; call eventually succeeds.
-- [ ] After `max_retries` exhausted, `GatekeeperMaxRetriesError` is raised.
-- [ ] `get_cost_summary()` returns correct accumulated token counts after a session.
-- [ ] Queue full → `BackpressureError` raised, no calls dropped silently.
+- [x] All LLM and web-search calls are routed through the gatekeeper (verifiable via logs).
+- [x] A burst of 35 calls in 1 minute (limit=30) queues 5 calls and processes them after the window resets.
+- [x] A transient HTTP 429 triggers retry with exponential back-off; call eventually succeeds.
+- [x] After `max_retries` exhausted, `GatekeeperMaxRetriesError` is raised.
+- [x] `get_cost_summary()` returns correct accumulated token counts after a session.
+- [x] Queue full → `BackpressureError` raised, no calls dropped silently.
 
 ---
 

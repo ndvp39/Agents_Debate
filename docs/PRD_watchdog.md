@@ -126,12 +126,12 @@ The Watchdog calls `restart_fn()` and updates its internal process reference.
 
 ## 10. Success Criteria
 
-- [ ] If an agent process does not respond within `timeout_seconds`, it is killed automatically.
-- [ ] A new process is spawned for the same agent role after a kill.
-- [ ] The debate resumes after a restart (orchestrator re-sends the last message).
-- [ ] `stop()` prevents timers from firing after the debate ends.
-- [ ] All timeout, kill, and restart events are logged.
-- [ ] Three independent timers run concurrently without interfering with each other.
+- [x] If an agent process does not respond within `timeout_seconds`, it is killed automatically.
+- [x] A new process is spawned for the same agent role after a kill.
+- [x] The debate resumes after a restart (orchestrator re-sends the last message).
+- [x] `stop()` prevents timers from firing after the debate ends.
+- [x] All timeout, kill, and restart events are logged.
+- [x] Three independent timers run concurrently without interfering with each other.
 
 ---
 

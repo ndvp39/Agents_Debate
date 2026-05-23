@@ -189,7 +189,7 @@ All inter-process communication is strict JSON.
 
 ## 8. Assumptions
 
-- An Anthropic (or equivalent LLM provider) API key is available via environment variable.
+- An LLM API key is available via environment variable. Supported providers: **Google Gemini** (default, free tier at aistudio.google.com) and **Anthropic Claude**. The active provider is selected via the `LLM_PROVIDER` environment variable.
 - A web-search API key is available via environment variable for debater agents.
 - The system runs on a machine with Python 3.10+ and `uv` installed.
 - Internet access is available for debater agents' web-search tool; the Judge agent does not use it.
@@ -222,7 +222,8 @@ All inter-process communication is strict JSON.
 | Dependency | Purpose |
 |------------|---------|
 | `uv` | Package and environment management |
-| Anthropic / OpenAI SDK | LLM API calls for all three agents |
+| `anthropic` SDK | LLM API calls when `LLM_PROVIDER=anthropic` |
+| `google-generativeai` SDK | LLM API calls when `LLM_PROVIDER=gemini` (default) |
 | Web-search library (TBD) | Debater agents' citation retrieval |
 | `pytest` + `pytest-cov` | Testing and coverage |
 | `ruff` | Linting |

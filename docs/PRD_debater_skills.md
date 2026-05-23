@@ -277,14 +277,14 @@ Every round:        AnalyzeOpponent
 
 ## 8. Success Criteria
 
-- [ ] `AnalyzeOpponent` correctly identifies the main claim from a sample argument.
-- [ ] `DetectFallacies` identifies a "Strawman" in a crafted test argument.
-- [ ] `AdaptStrategy` returns `"offensive"` when own score > opponent score.
-- [ ] `AdaptStrategy` returns `"defensive"` when own score < opponent score.
-- [ ] `SynthesizeEvidence` returns 1–3 citations from a list of 5 raw results.
-- [ ] `ApplyRhetoric` output contains the original factual content.
-- [ ] `CraftOpening` only fires on round 1 (raises `SkillNotApplicableError` on other rounds).
-- [ ] Full pipeline produces a valid `argument` JSON message with ≥ 1 citation.
+- [x] `AnalyzeOpponent` correctly identifies the main claim from a sample argument.
+- [x] `DetectFallacies` identifies a "Strawman" in a crafted test argument.
+- [x] `AdaptStrategy` returns `"offensive"` when own score > opponent score.
+- [x] `AdaptStrategy` returns `"defensive"` when own score < opponent score.
+- [x] `SynthesizeEvidence` returns 1–3 citations from a list of 5 raw results.
+- [x] `ApplyRhetoric` output contains the original factual content.
+- [x] `CraftOpening` only fires on round 1 (raises `SkillNotApplicableError` on other rounds).
+- [x] Full pipeline produces a valid `argument` JSON message with ≥ 1 citation.
 
 ---
 

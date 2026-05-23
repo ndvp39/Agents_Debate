@@ -167,12 +167,12 @@ Multiple agent processes and the orchestrator write logs concurrently. Thread sa
 
 ## 11. Success Criteria
 
-- [ ] Writing 500 lines to a fresh logger creates exactly 1 file.
-- [ ] Writing 501 lines creates 2 files; the second file contains 1 line.
-- [ ] Writing enough lines to fill 21 files causes the oldest file to be deleted (max_files=20).
-- [ ] Concurrent writes from 3 threads produce no interleaved or corrupted lines.
-- [ ] Entries below the configured level are not written.
-- [ ] A write failure does not raise an exception to the caller.
+- [x] Writing 500 lines to a fresh logger creates exactly 1 file.
+- [x] Writing 501 lines creates 2 files; the second file contains 1 line.
+- [x] Writing enough lines to fill 21 files causes the oldest file to be deleted (max_files=20).
+- [x] Concurrent writes from 3 threads produce no interleaved or corrupted lines.
+- [x] Entries below the configured level are not written.
+- [x] A write failure does not raise an exception to the caller.
 
 ---
 

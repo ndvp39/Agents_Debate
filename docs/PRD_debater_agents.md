@@ -157,16 +157,16 @@ Each skill in the pipeline receives the output of the previous skill as part of 
 
 ## 11. Success Criteria
 
-- [ ] `ProAgent` never produces an argument containing agreement phrases.
-- [ ] `ConAgent` never produces an argument containing agreement phrases.
-- [ ] Every argument message contains at least 1 citation.
-- [ ] All LLM and web-search calls pass through the Gatekeeper (verifiable via Gatekeeper logs).
-- [ ] If web search fails, the debater still returns a valid `argument` message.
-- [ ] `ProAgent` and `ConAgent` share zero duplicated logic (all in `BaseDebater`).
-- [ ] On round 1, only `CraftOpening → SynthesizeEvidence → ApplyRhetoric` run.
-- [ ] On round 2+, all 6 remaining skills run in the correct order.
-- [ ] `CraftOpening` called on round 2+ raises `SkillNotApplicableError`.
-- [ ] `ApplyRhetoric` is always the last skill executed before message construction.
+- [x] `ProAgent` never produces an argument containing agreement phrases.
+- [x] `ConAgent` never produces an argument containing agreement phrases.
+- [x] Every argument message contains at least 1 citation.
+- [x] All LLM and web-search calls pass through the Gatekeeper (verifiable via Gatekeeper logs).
+- [x] If web search fails, the debater still returns a valid `argument` message.
+- [x] `ProAgent` and `ConAgent` share zero duplicated logic (all in `BaseDebater`).
+- [x] On round 1, only `CraftOpening → SynthesizeEvidence → ApplyRhetoric` run.
+- [x] On round 2+, all 6 remaining skills run in the correct order.
+- [x] `CraftOpening` called on round 2+ raises `SkillNotApplicableError`.
+- [x] `ApplyRhetoric` is always the last skill executed before message construction.
 
 ---
 

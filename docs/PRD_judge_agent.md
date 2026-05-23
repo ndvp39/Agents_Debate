@@ -160,15 +160,15 @@ The Judge Agent is instantiated **without** the `WebSearchTool`. No web-search t
 
 ## 9. Success Criteria
 
-- [ ] Judge reprimands an argument that contains "I agree with your point".
-- [ ] Judge reprimands an argument with an empty citations list.
-- [ ] Judge reprimands a round 2+ argument that ignores an obvious logical fallacy.
-- [ ] Judge advances the round for a valid argument with citations, direct rebuttal, and fallacy identification.
-- [ ] `EvaluatePersuasionScore` produces three sub-scores (logical, citation, rhetoric) summing correctly.
-- [ ] `DeclareVerdict` produces a verdict with two different integer scores and a named winner.
-- [ ] `DeclareVerdict` never produces equal scores (tie-breaker always fires when needed).
-- [ ] Verdict justification references round-by-round rhetoric quality alongside logic and citations.
-- [ ] Judge process raises `ToolNotAvailableError` if web search is attempted.
+- [x] Judge reprimands an argument that contains "I agree with your point".
+- [x] Judge reprimands an argument with an empty citations list.
+- [x] Judge reprimands a round 2+ argument that ignores an obvious logical fallacy.
+- [x] Judge advances the round for a valid argument with citations, direct rebuttal, and fallacy identification.
+- [x] `EvaluatePersuasionScore` produces three sub-scores (logical, citation, rhetoric) summing correctly.
+- [x] `DeclareVerdict` produces a verdict with two different integer scores and a named winner.
+- [x] `DeclareVerdict` never produces equal scores (tie-breaker always fires when needed).
+- [x] Verdict justification references round-by-round rhetoric quality alongside logic and citations.
+- [x] Judge process raises `ToolNotAvailableError` if web search is attempted.
 
 ---
 

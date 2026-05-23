@@ -126,7 +126,7 @@ class IPCChannel:
     def send(self, process: subprocess.Popen, message: dict) -> None:
         """Serialize message to JSON and write to process stdin."""
 
-    def receive(self, process: subprocess.Popen, timeout: float) -> dict:
+    def receive(self, process: subprocess.Popen, timeout: float = 120.0) -> dict:
         """Read one JSON line from process stdout; raise on timeout or parse error."""
 
     def validate(self, message: dict) -> None:
@@ -166,11 +166,11 @@ class IPCChannel:
 
 ## 7. Success Criteria
 
-- [ ] All 4 message types serialize and deserialize without data loss.
-- [ ] Malformed JSON raises `IPCParseError` without crashing the orchestrator.
-- [ ] A verdict with equal scores raises `IPCSchemaError`.
-- [ ] A `receive()` call that exceeds timeout raises `IPCTimeoutError`.
-- [ ] Schema validation rejects an `argument` message with an empty `citations` list.
+- [x] All 4 message types serialize and deserialize without data loss.
+- [x] Malformed JSON raises `IPCParseError` without crashing the orchestrator.
+- [x] A verdict with equal scores raises `IPCSchemaError`.
+- [x] A `receive()` call that exceeds timeout raises `IPCTimeoutError`.
+- [x] Schema validation rejects an `argument` message with an empty `citations` list.
 
 ---
 

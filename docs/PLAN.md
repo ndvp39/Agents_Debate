@@ -25,8 +25,8 @@
 │          ┌──────────────┐  ┌──────────────┐  ┌────────────┐   │
 │          │  LLM API     │  │  Web Search  │  │ File System│   │
 │          │ (Anthropic / │  │  API         │  │ (logs,     │   │
-│          │  OpenAI)     │  │ (debaters    │  │  results,  │   │
-│          │              │  │  only)       │  │  config)   │   │
+│          │  Google      │  │ (debaters    │  │  results,  │   │
+│          │  Gemini)     │  │  only)       │  │  config)   │   │
 │          └──────────────┘  └──────────────┘  └────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -75,40 +75,47 @@
 ### 1.3 Level 3 — Component Diagram (src package)
 
 ```
-src/debate/
+src/
+├── main.py                     ← CLI entry point (delegates to SDK only)
+├── pro_runner.py               ← Subprocess entry point — Pro debater
+├── con_runner.py               ← Subprocess entry point — Con debater
+├── judge_runner.py             ← Subprocess entry point — Judge
 │
-├── sdk/
-│   └── sdk.py                  ← DebateSDK (single public entry point)
-│
-├── services/
-│   └── orchestrator.py         ← DebateOrchestrator (debate loop, round mgmt)
-│
-├── agents/
-│   ├── base_agent.py           ← BaseAgent (process lifecycle, IPC, skill registry)
-│   ├── watchdog.py             ← Watchdog (timeout, kill, restart)
-│   ├── judge/
-│   │   ├── judge_agent.py      ← JudgeAgent(BaseAgent) (no internet, scoring)
-│   │   └── skills.py           ← EnforceDebateMechanics, RouteT urn,
-│   │                                EvaluatePersuasionScore, DeclareVerdict
-│   └── debaters/
-│       ├── base_debater.py     ← BaseDebater(BaseAgent) (anti-sycophancy, skill pipeline)
-│       ├── pro_agent.py        ← ProAgent(BaseDebater)
-│       ├── con_agent.py        ← ConAgent(BaseDebater)
-│       ├── web_search_tool.py  ← WebSearchTool (goes through Gatekeeper)
-│       └── skills.py           ← CraftOpening, AnalyzeOpponent, DetectFallacies,
-│                                    AdaptStrategy, BuildCounterArgument,
-│                                    SynthesizeEvidence, ApplyRhetoric
-│
-├── ipc/
-│   ├── schemas.py              ← RoutingMessage, ReprimandMessage, VerdictMessage
-│   └── channel.py              ← IPCChannel (send/receive JSON over pipes)
-│
-└── shared/
-    ├── config.py               ← ConfigManager (loads + validates versioned JSON)
-    ├── gatekeeper.py           ← ApiGatekeeper (rate limits, queue, retry, logging)
-    ├── logger.py               ← DebateLogger (FIFO rotation, structured output)
-    ├── version.py              ← VERSION = "1.00"
-    └── constants.py            ← Immutable project constants
+└── debate/
+    ├── sdk/
+    │   ├── sdk.py              ← DebateSDK (single public entry point)
+    │   └── factory.py          ← subprocess_factory (spawns three agent processes)
+    │
+    ├── services/
+    │   └── orchestrator.py     ← DebateOrchestrator (debate loop, round mgmt)
+    │
+    ├── agents/
+    │   ├── base_agent.py       ← BaseAgent (process lifecycle, IPC, skill registry)
+    │   ├── watchdog.py         ← Watchdog (timeout, kill, restart)
+    │   ├── judge/
+    │   │   ├── judge_agent.py  ← JudgeAgent(BaseAgent) (no internet, scoring)
+    │   │   └── skills.py       ← EnforceDebateMechanics, RouteTurn,
+    │   │                            EvaluatePersuasionScore, DeclareVerdict
+    │   └── debaters/
+    │       ├── base_debater.py ← BaseDebater(BaseAgent) (anti-sycophancy, skill pipeline)
+    │       ├── pro_agent.py    ← ProAgent(BaseDebater)
+    │       ├── con_agent.py    ← ConAgent(BaseDebater)
+    │       ├── web_search_tool.py ← WebSearchTool (goes through Gatekeeper)
+    │       └── skills.py       ← CraftOpening, AnalyzeOpponent, DetectFallacies,
+    │                                AdaptStrategy, BuildCounterArgument,
+    │                                SynthesizeEvidence, ApplyRhetoric
+    │
+    ├── ipc/
+    │   ├── schemas.py          ← RoutingMessage, ReprimandMessage, VerdictMessage, ArgumentMessage
+    │   └── channel.py          ← IPCChannel (send/receive JSON over pipes, 120 s timeout)
+    │
+    └── shared/
+        ├── config.py           ← ConfigManager (loads + validates versioned JSON)
+        ├── llm_provider.py     ← LLM factory (Anthropic or Gemini via LLM_PROVIDER env var)
+        ├── gatekeeper.py       ← ApiGatekeeper (rate limits, queue, retry, logging)
+        ├── logger.py           ← DebateLogger (FIFO rotation, structured output)
+        ├── version.py          ← VERSION = "1.00"
+        └── constants.py        ← Immutable project constants
 ```
 
 ### 1.4 Level 4 — Key Class Relationships (UML)
@@ -177,9 +184,9 @@ User      CLI       SDK       Orchestrator   Pro      Judge    Con
 │  │                    Python Runtime (uv)                      │ │
 │  │                                                             │ │
 │  │  Process 1: main.py (CLI + SDK + Orchestrator)              │ │
-│  │  Process 2: judge_agent.py  (Judge)                         │ │
-│  │  Process 3: pro_agent.py    (Pro Debater)                   │ │
-│  │  Process 4: con_agent.py    (Con Debater)                   │ │
+│  │  Process 2: judge_runner.py (Judge)                         │ │
+│  │  Process 3: pro_runner.py   (Pro Debater)                   │ │
+│  │  Process 4: con_runner.py   (Con Debater)                   │ │
 │  │                                                             │ │
 │  │  IPC: JSON over stdin/stdout pipes (subprocess)             │ │
 │  └─────────────────────────────────────────────────────────────┘ │
@@ -248,6 +255,20 @@ User      CLI       SDK       Orchestrator   Pro      Judge    Con
 **Decision:** `config/rate_limits.json` and `config/setup.json` hold all configurable values. `ConfigManager` validates version compatibility at startup.
 
 **Rationale:** No hardcoded values in source code per guidelines. Config versioning allows safe upgrades.
+
+---
+
+### ADR-006: Multi-provider LLM support via injected factory
+
+**Decision:** `debate.shared.llm_provider` provides `make_debater_llm()`, `make_judge_evaluate_llm()`, and `make_judge_route_llm()` factory functions. The active provider is resolved from the `LLM_PROVIDER` environment variable (overrides) or `config/setup.json → provider.active`. Default is **Google Gemini** (free API key).
+
+**Rationale:** Decouples the agent logic from any specific SDK. Runners inject callables at startup; agents never import `anthropic` or `google.generativeai` directly. Switching provider requires only a one-line `.env` change.
+
+**Alternatives considered:**
+- Hard-coded Anthropic client inside each agent: Breaks testability; requires paid key.
+- Strategy class hierarchy: More boilerplate than simple factory functions for this scope.
+
+**Trade-off:** Both provider SDKs are installed (`anthropic`, `google-generativeai`), adding ~50 MB to the venv even if only one is used.
 
 ---
 
@@ -328,10 +349,26 @@ class PersuasionScore:
     "language": "en",
     "timeout_seconds": 120
   },
+  "provider": {
+    "active": "gemini",
+    "anthropic": {
+      "debater_model": "claude-sonnet-4-6",
+      "judge_model": "claude-sonnet-4-6",
+      "temperature": 0.7,
+      "max_tokens": 1024
+    },
+    "gemini": {
+      "debater_model": "gemini-2.0-flash",
+      "judge_model": "gemini-2.0-flash",
+      "temperature": 0.7,
+      "max_tokens": 1024
+    }
+  },
   "agents": {
-    "judge_model": "",
-    "debater_model": "",
-    "temperature": 0.7
+    "judge_model": "claude-sonnet-4-6",
+    "debater_model": "claude-sonnet-4-6",
+    "temperature": 0.7,
+    "max_tokens": 1024
   }
 }
 ```
