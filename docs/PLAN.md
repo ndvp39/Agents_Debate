@@ -262,13 +262,13 @@ User      CLI       SDK       Orchestrator   Pro      Judge    Con
 
 **Decision:** `debate.shared.llm_provider` provides `make_debater_llm()`, `make_judge_evaluate_llm()`, and `make_judge_route_llm()` factory functions. The active provider is resolved from the `LLM_PROVIDER` environment variable (overrides) or `config/setup.json → provider.active`. Default is **Google Gemini** (free API key).
 
-**Rationale:** Decouples the agent logic from any specific SDK. Runners inject callables at startup; agents never import `anthropic` or `google.generativeai` directly. Switching provider requires only a one-line `.env` change.
+**Rationale:** Decouples the agent logic from any specific SDK. Runners inject callables at startup; agents never import `anthropic` or `google.genai` directly. Switching provider requires only a one-line `.env` change.
 
 **Alternatives considered:**
 - Hard-coded Anthropic client inside each agent: Breaks testability; requires paid key.
 - Strategy class hierarchy: More boilerplate than simple factory functions for this scope.
 
-**Trade-off:** Both provider SDKs are installed (`anthropic`, `google-generativeai`), adding ~50 MB to the venv even if only one is used.
+**Trade-off:** Both provider SDKs are installed (`anthropic`, `google-genai`), adding ~50 MB to the venv even if only one is used.
 
 ---
 
@@ -358,8 +358,8 @@ class PersuasionScore:
       "max_tokens": 1024
     },
     "gemini": {
-      "debater_model": "gemini-2.0-flash",
-      "judge_model": "gemini-2.0-flash",
+      "debater_model": "gemini-2.5-flash",
+      "judge_model": "gemini-2.5-flash",
       "temperature": 0.7,
       "max_tokens": 1024
     }

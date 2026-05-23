@@ -223,7 +223,7 @@ All inter-process communication is strict JSON.
 |------------|---------|
 | `uv` | Package and environment management |
 | `anthropic` SDK | LLM API calls when `LLM_PROVIDER=anthropic` |
-| `google-generativeai` SDK | LLM API calls when `LLM_PROVIDER=gemini` (default) |
+| `google-genai` SDK | LLM API calls when `LLM_PROVIDER=gemini` (default) |
 | Web-search library (TBD) | Debater agents' citation retrieval |
 | `pytest` + `pytest-cov` | Testing and coverage |
 | `ruff` | Linting |

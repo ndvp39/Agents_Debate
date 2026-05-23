@@ -75,9 +75,13 @@ def _default_model(provider: str) -> str:
 
 
 def _extract_json(text: str) -> dict:
-    """Extract the first JSON object from a text response."""
+    """Extract the first JSON object from a text response (handles markdown fences)."""
+    if not text:
+        raise ValueError("Empty LLM response")
     start = text.find("{")
     end = text.rfind("}") + 1
+    if start == -1 or end == 0:
+        raise ValueError(f"No JSON object found in: {text!r}")
     return json.loads(text[start:end])
 
 
@@ -120,11 +124,11 @@ def _anthropic_evaluate_llm(model: str):
         prompt = (
             "Score this debate argument on three dimensions from 0.0 to 1.0.\n"
             f"Argument: {argument}\nCitations: {citations}\n\n"
-            "Reply with ONLY a JSON object:\n"
+            "Reply with ONLY a raw JSON object, no markdown, no code fences:\n"
             '{"logical_consistency": <float>, "citation_strength": <float>, "rhetoric_quality": <float>}'
         )
         text = _retry(lambda: client.messages.create(
-            model=model, max_tokens=150,
+            model=model, max_tokens=256,
             messages=[{"role": "user", "content": prompt}],
         ).content[0].text)
         return _extract_json(text)
@@ -175,13 +179,13 @@ def _gemini_text_llm(model: str, temperature: float, max_tokens: int):
 def _gemini_evaluate_llm(model: str):
     from google.genai import types
     client = _gemini_client()
-    cfg = types.GenerateContentConfig(max_output_tokens=200)
+    cfg = types.GenerateContentConfig(max_output_tokens=2048)
 
     def evaluate_llm(argument: str, citations: list) -> dict:
         prompt = (
             "Score this debate argument on three dimensions from 0.0 to 1.0.\n"
             f"Argument: {argument}\nCitations: {citations}\n\n"
-            "Reply with ONLY a JSON object:\n"
+            "Reply with ONLY a raw JSON object, no markdown, no code fences:\n"
             '{"logical_consistency": <float>, "citation_strength": <float>, "rhetoric_quality": <float>}'
         )
         text = _retry(lambda: client.models.generate_content(

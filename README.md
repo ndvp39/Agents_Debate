@@ -53,9 +53,10 @@ uv run python src/main.py
 ```
 
 You will be prompted for a topic and number of rounds (press Enter for the
-default of 10). Each agent runs in its own subprocess and communicates with
-the orchestrator over JSON-lines stdin/stdout pipes. Expect 15–60 seconds per
-round depending on API latency.
+default of 10; minimum 2 so both debaters get at least one turn). Each agent
+runs in its own subprocess and communicates with the orchestrator over
+JSON-lines stdin/stdout pipes. Expect 15–60 seconds per round depending on
+API latency.
 
 ---
 
@@ -92,7 +93,7 @@ uv run pytest tests/
 uv run ruff check src/
 ```
 
-**Current quality gate:** 233 tests · 95%+ coverage · 0 ruff violations.
+**Current quality gate:** 233 tests · 94%+ coverage · 0 ruff violations.
 
 ---
 
@@ -156,9 +157,25 @@ tests/
 
 ---
 
-## Example Debate Transcript
+## Example Debate Output
 
-*(To be added after a full live run — Task 10.5.)*
+Live run on topic **"AI will replace human jobs"** (2 rounds, Gemini 2.5 Flash):
+
+```
+============================================================
+  DEBATE COMPLETE
+============================================================
+  Winner : Agent_Con
+  Scores : Agent_Pro = 36  |  Agent_Con = 48
+
+  Justification:
+  Agent_Con demonstrated superior persuasion across 1 round(s).
+  Logic 0.36 vs 0.48; rhetoric and citation quality consistently
+  favoured Agent_Con.
+
+  Messages in transcript : 5
+============================================================
+```
 
 ---
 
