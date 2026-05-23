@@ -27,9 +27,10 @@ class Stance:
     CON = "completely AGAINST"
 
 
-# Persuasion score weights (must sum to 1.0)
-SCORE_WEIGHT_LOGIC: float = 0.6
-SCORE_WEIGHT_CITATION: float = 0.4
+# Persuasion score weights — 3 dimensions, must sum to 1.0
+SCORE_WEIGHT_LOGIC: float = 0.5
+SCORE_WEIGHT_CITATION: float = 0.3
+SCORE_WEIGHT_RHETORIC: float = 0.2
 
 # Minimum character length for a valid verdict justification
 MIN_JUSTIFICATION_LENGTH: int = 50

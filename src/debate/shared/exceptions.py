@@ -33,6 +33,10 @@ class WatchdogRestartError(DebateError):
     """Raised when the Watchdog fails to restart an agent process."""
 
 
+class SkillNotApplicableError(DebateError):
+    """Raised when a skill cannot handle the current context (e.g. wrong round)."""
+
+
 class ToolNotAvailableError(DebateError):
     """Raised when an agent attempts to use an unregistered skill/tool."""
 

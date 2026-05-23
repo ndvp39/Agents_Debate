@@ -6,6 +6,7 @@ from debate.shared.constants import (
     MIN_JUSTIFICATION_LENGTH,
     SCORE_WEIGHT_CITATION,
     SCORE_WEIGHT_LOGIC,
+    SCORE_WEIGHT_RHETORIC,
     AgentID,
     MessageType,
     Stance,
@@ -49,11 +50,17 @@ def test_stance_con_contains_against():
 
 
 def test_score_weights_sum_to_one():
-    assert abs(SCORE_WEIGHT_LOGIC + SCORE_WEIGHT_CITATION - 1.0) < 1e-9
+    total = SCORE_WEIGHT_LOGIC + SCORE_WEIGHT_CITATION + SCORE_WEIGHT_RHETORIC
+    assert abs(total - 1.0) < 1e-9
 
 
 def test_score_weight_logic_dominant():
     assert SCORE_WEIGHT_LOGIC > SCORE_WEIGHT_CITATION
+    assert SCORE_WEIGHT_LOGIC > SCORE_WEIGHT_RHETORIC
+
+
+def test_score_weight_rhetoric_exists():
+    assert 0.0 < SCORE_WEIGHT_RHETORIC < 1.0
 
 
 def test_min_justification_length():

@@ -84,10 +84,10 @@
 
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
-| 5.1 | Write tests for `agents/judge/skills.py` | Critical | 🔴 Not Started | Dev | Tests cover all 4 skills; reprimand trigger; score update; verdict output |
-| 5.2 | Implement `agents/judge/skills.py` | Critical | 🔴 Not Started | Dev | Tests pass; skills defined locally; ≤150 lines |
-| 5.3 | Write tests for `agents/judge/judge_agent.py` | Critical | 🔴 Not Started | Dev | Tests cover no-internet enforcement, scoring rounds, verdict (no ties) |
-| 5.4 | Implement `agents/judge/judge_agent.py` (JudgeAgent) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseAgent; ≤150 lines |
+| 5.1 | Write tests for `agents/judge/skills.py` | Critical | ✅ Done | Dev | Tests cover all 4 skills; reprimand trigger; score update; verdict output |
+| 5.2 | Implement `agents/judge/skills.py` | Critical | ✅ Done | Dev | Tests pass; skills defined locally; ≤150 lines |
+| 5.3 | Write tests for `agents/judge/judge_agent.py` | Critical | ✅ Done | Dev | Tests cover no-internet enforcement, scoring rounds, verdict (no ties) |
+| 5.4 | Implement `agents/judge/judge_agent.py` (JudgeAgent) | Critical | ✅ Done | Dev | Tests pass; inherits BaseAgent; ≤150 lines |
 
 ---
 
@@ -162,10 +162,10 @@
 | 2 — Shared infrastructure | 10 | 10 ✅ |
 | 3 — IPC protocol | 4 | 4 ✅ |
 | 4 — Base agent + Watchdog | 4 | 4 ✅ |
-| 5 — Judge agent | 4 | 0 |
+| 5 — Judge agent | 4 | 4 ✅ |
 | 6 — Debater agents | 10 | 0 |
 | 7 — Orchestrator | 2 | 0 |
 | 8 — SDK + CLI | 3 | 0 |
 | 9 — Quality gates | 6 | 0 |
 | 10 — Deliverables | 6 | 0 |
-| **Total** | **70** | **39** |
+| **Total** | **70** | **43** |
