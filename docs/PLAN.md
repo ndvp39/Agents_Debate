@@ -91,10 +91,13 @@ src/debate/
 │   │   └── skills.py           ← EnforceDebateMechanics, RouteT urn,
 │   │                                EvaluatePersuasionScore, DeclareVerdict
 │   └── debaters/
-│       ├── base_debater.py     ← BaseDebater(BaseAgent) (anti-sycophancy logic)
+│       ├── base_debater.py     ← BaseDebater(BaseAgent) (anti-sycophancy, skill pipeline)
 │       ├── pro_agent.py        ← ProAgent(BaseDebater)
 │       ├── con_agent.py        ← ConAgent(BaseDebater)
-│       └── web_search_tool.py  ← WebSearchTool (goes through Gatekeeper)
+│       ├── web_search_tool.py  ← WebSearchTool (goes through Gatekeeper)
+│       └── skills.py           ← CraftOpening, AnalyzeOpponent, DetectFallacies,
+│                                    AdaptStrategy, BuildCounterArgument,
+│                                    SynthesizeEvidence, ApplyRhetoric
 │
 ├── ipc/
 │   ├── schemas.py              ← RoutingMessage, ReprimandMessage, VerdictMessage
@@ -306,9 +309,10 @@ class DebateResult:
 class PersuasionScore:
     agent_id: str
     round: int
-    logical_consistency: float   # 0.0 – 1.0
-    citation_strength: float     # 0.0 – 1.0
-    cumulative_score: float
+    logical_consistency: float   # 0.0 – 1.0  (weight: 0.5)
+    citation_strength: float     # 0.0 – 1.0  (weight: 0.3)
+    rhetoric_quality: float      # 0.0 – 1.0  (weight: 0.2)
+    cumulative_score: float      # 0.5*logic + 0.3*citation + 0.2*rhetoric
 ```
 
 ---

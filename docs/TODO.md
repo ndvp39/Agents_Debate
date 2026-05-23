@@ -44,16 +44,16 @@
 
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
-| 2.1 | Write tests for `constants.py` | High | 🔴 Not Started | Dev | Tests written (RED) |
-| 2.2 | Implement `shared/constants.py` | High | 🔴 Not Started | Dev | Tests pass (GREEN); ruff clean; ≤150 lines |
-| 2.3 | Write tests for `shared/version.py` | High | 🔴 Not Started | Dev | Tests written (RED) |
-| 2.4 | Implement `shared/version.py` (VERSION = "1.00") | High | 🔴 Not Started | Dev | Tests pass; version exported correctly |
-| 2.5 | Write tests for `shared/config.py` | Critical | 🔴 Not Started | Dev | Tests cover load, version validation, missing key errors |
-| 2.6 | Implement `shared/config.py` | Critical | 🔴 Not Started | Dev | Tests pass; loads all 3 config files; validates version |
-| 2.7 | Write tests for `shared/gatekeeper.py` | Critical | 🔴 Not Started | Dev | Tests cover rate limiting, queue overflow, retry, logging |
-| 2.8 | Implement `shared/gatekeeper.py` (ApiGatekeeper) | Critical | 🔴 Not Started | Dev | Tests pass; FIFO queue; no API call bypasses it; ≤150 lines |
-| 2.9 | Write tests for `shared/logger.py` | High | 🔴 Not Started | Dev | Tests cover file rotation, line limit, FIFO behavior |
-| 2.10 | Implement `shared/logger.py` (DebateLogger) | High | 🔴 Not Started | Dev | Tests pass; respects config limits; ≤150 lines |
+| 2.1 | Write tests for `constants.py` | High | ✅ Done | Dev | Tests written (RED) |
+| 2.2 | Implement `shared/constants.py` | High | ✅ Done | Dev | Tests pass (GREEN); ruff clean; ≤150 lines |
+| 2.3 | Write tests for `shared/version.py` | High | ✅ Done | Dev | Tests written (RED) |
+| 2.4 | Implement `shared/version.py` (VERSION = "1.00") | High | ✅ Done | Dev | Tests pass; version exported correctly |
+| 2.5 | Write tests for `shared/config.py` | Critical | ✅ Done | Dev | Tests cover load, version validation, missing key errors |
+| 2.6 | Implement `shared/config.py` | Critical | ✅ Done | Dev | Tests pass; loads all 3 config files; validates version |
+| 2.7 | Write tests for `shared/gatekeeper.py` | Critical | ✅ Done | Dev | Tests cover rate limiting, queue overflow, retry, logging |
+| 2.8 | Implement `shared/gatekeeper.py` (ApiGatekeeper) | Critical | ✅ Done | Dev | Tests pass; FIFO queue; no API call bypasses it; ≤150 lines |
+| 2.9 | Write tests for `shared/logger.py` | High | ✅ Done | Dev | Tests cover file rotation, line limit, FIFO behavior |
+| 2.10 | Implement `shared/logger.py` (DebateLogger) | High | ✅ Done | Dev | Tests pass; respects config limits; ≤150 lines |
 
 ---
 
@@ -96,12 +96,15 @@
 |---|------|----------|--------|-------|--------------------|
 | 6.1 | Write tests for `agents/debaters/web_search_tool.py` | High | 🔴 Not Started | Dev | Tests cover search call, gatekeeper routing, result parsing |
 | 6.2 | Implement `agents/debaters/web_search_tool.py` | High | 🔴 Not Started | Dev | Tests pass; all calls via Gatekeeper; ≤150 lines |
-| 6.3 | Write tests for `agents/debaters/base_debater.py` | Critical | 🔴 Not Started | Dev | Tests cover anti-sycophancy prompt injection, direct rebuttal |
-| 6.4 | Implement `agents/debaters/base_debater.py` (BaseDebater) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseAgent; shared debater logic; ≤150 lines |
-| 6.5 | Write tests for `agents/debaters/pro_agent.py` | Critical | 🔴 Not Started | Dev | Tests cover FOR stance enforcement |
-| 6.6 | Implement `agents/debaters/pro_agent.py` (ProAgent) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseDebater; ≤150 lines |
-| 6.7 | Write tests for `agents/debaters/con_agent.py` | Critical | 🔴 Not Started | Dev | Tests cover AGAINST stance enforcement |
-| 6.8 | Implement `agents/debaters/con_agent.py` (ConAgent) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseDebater; ≤150 lines |
+| 6.3 | Write `docs/PRD_debater_skills.md` | Critical | ✅ Done | Dev | Covers all 7 skills with I/O, pipeline order, test scenarios |
+| 6.4 | Write tests for `agents/debaters/skills.py` | Critical | 🔴 Not Started | Dev | Tests cover all 7 skills, pipeline order, SkillNotApplicableError |
+| 6.5 | Implement `agents/debaters/skills.py` | Critical | 🔴 Not Started | Dev | Tests pass; all 7 skills locally defined; ≤150 lines per file |
+| 6.6 | Write tests for `agents/debaters/base_debater.py` | Critical | 🔴 Not Started | Dev | Tests cover skill pipeline execution, anti-sycophancy, direct rebuttal |
+| 6.7 | Implement `agents/debaters/base_debater.py` (BaseDebater) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseAgent; runs skill pipeline; ≤150 lines |
+| 6.8 | Write tests for `agents/debaters/pro_agent.py` | Critical | 🔴 Not Started | Dev | Tests cover FOR stance enforcement |
+| 6.9 | Implement `agents/debaters/pro_agent.py` (ProAgent) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseDebater; ≤150 lines |
+| 6.10 | Write tests for `agents/debaters/con_agent.py` | Critical | 🔴 Not Started | Dev | Tests cover AGAINST stance enforcement |
+| 6.11 | Implement `agents/debaters/con_agent.py` (ConAgent) | Critical | 🔴 Not Started | Dev | Tests pass; inherits BaseDebater; ≤150 lines |
 
 ---
 
@@ -156,13 +159,13 @@
 |-------|-------|------|
 | 0 — Documentation | 11 | 11 ✅ |
 | 1 — Project skeleton | 9 | 9 ✅ |
-| 2 — Shared infrastructure | 10 | 0 |
+| 2 — Shared infrastructure | 10 | 10 ✅ |
 | 3 — IPC protocol | 4 | 0 |
 | 4 — Base agent + Watchdog | 4 | 0 |
 | 5 — Judge agent | 4 | 0 |
-| 6 — Debater agents | 8 | 0 |
+| 6 — Debater agents | 11 | 1 |
 | 7 — Orchestrator | 2 | 0 |
 | 8 — SDK + CLI | 3 | 0 |
 | 9 — Quality gates | 6 | 0 |
 | 10 — Deliverables | 6 | 0 |
-| **Total** | **67** | **20** |
+| **Total** | **70** | **31** |

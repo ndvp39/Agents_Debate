@@ -1,5 +1,5 @@
 # PRD — Judge Agent
-**Version:** 1.00  
+**Version:** 1.01  
 **Date:** 2026-05-23  
 **Files:** `src/debate/agents/judge/judge_agent.py`, `src/debate/agents/judge/skills.py`
 
@@ -27,6 +27,7 @@ The Judge is also the system's **anti-sycophancy enforcer**. Because LLMs natura
   - Fails to directly address the opponent's previous claims.
   - Provides no citations.
   - Provides only anecdotal evidence without sources.
+  - On round 2+, completely ignores an obvious logical fallacy in the opponent's argument (the Judge expects debaters to call out fallacies given their `DetectFallacies` skill).
 - The final verdict MUST name one winner. **Ties are strictly forbidden.**
 - The verdict is based on **persuasiveness and rhetorical skill**, not objective factual truth.
 
@@ -44,7 +45,8 @@ All four skills are defined in `skills.py` and registered locally. The Judge Age
 1. Check if the argument directly addresses the opponent's previous claims. If not → reprimand.
 2. Check if `citations` list is non-empty. If empty → reprimand.
 3. Check if the argument contains agreement phrases (e.g., "you make a good point", "I agree", "that's correct"). If found → reprimand.
-4. If all checks pass → pass the argument to `RouteTurn`.
+4. On round 2+: check if the argument identifies at least one logical fallacy in the opponent's prior argument (expected because debaters have `DetectFallacies` skill). If the opponent's argument contained an obvious fallacy and the debater completely ignored it → reprimand.
+5. If all checks pass → pass the argument to `RouteTurn`.
 
 **Output:** Either a `reprimand` JSON message or calls `RouteTurn`.
 
@@ -70,16 +72,19 @@ All four skills are defined in `skills.py` and registered locally. The Judge Age
 **Trigger:** Called internally by `RouteTurn` after each valid argument.
 
 **Logic:**
-Scores two sub-dimensions per round:
-- `logical_consistency` (0.0–1.0): Does the argument follow logically from its premises?
-- `citation_strength` (0.0–1.0): Are citations credible, specific, and relevant?
+Scores three sub-dimensions per round:
+- `logical_consistency` (0.0–1.0): Does the argument follow logically from its premises? Does it identify and exploit the opponent's weakest point?
+- `citation_strength` (0.0–1.0): Are citations credible, specific, and relevant? Are fallacies correctly named and explained?
+- `rhetoric_quality` (0.0–1.0): Does the argument demonstrate strong rhetorical technique — ethos, pathos, logos, analogies, memorable framing? Is the language persuasive and precise?
 
 Cumulative score updated as:
 ```
-cumulative_score = 0.6 * avg(logical_consistency) + 0.4 * avg(citation_strength)
+cumulative_score = 0.5 * avg(logical_consistency)
+                 + 0.3 * avg(citation_strength)
+                 + 0.2 * avg(rhetoric_quality)
 ```
 
-Scores are stored internally and used by `DeclareVerdict`.
+Scores are stored internally per round and used by `DeclareVerdict`.
 
 **Output:** Updated `PersuasionScore` dataclass for the speaking agent.
 
@@ -157,9 +162,12 @@ The Judge Agent is instantiated **without** the `WebSearchTool`. No web-search t
 
 - [ ] Judge reprimands an argument that contains "I agree with your point".
 - [ ] Judge reprimands an argument with an empty citations list.
-- [ ] Judge advances the round for a valid argument with citations and direct rebuttal.
+- [ ] Judge reprimands a round 2+ argument that ignores an obvious logical fallacy.
+- [ ] Judge advances the round for a valid argument with citations, direct rebuttal, and fallacy identification.
+- [ ] `EvaluatePersuasionScore` produces three sub-scores (logical, citation, rhetoric) summing correctly.
 - [ ] `DeclareVerdict` produces a verdict with two different integer scores and a named winner.
 - [ ] `DeclareVerdict` never produces equal scores (tie-breaker always fires when needed).
+- [ ] Verdict justification references round-by-round rhetoric quality alongside logic and citations.
 - [ ] Judge process raises `ToolNotAvailableError` if web search is attempted.
 
 ---
@@ -170,7 +178,11 @@ The Judge Agent is instantiated **without** the `WebSearchTool`. No web-search t
 |----------|-----------------|
 | Argument contains "you make a good point" | `reprimand` message returned |
 | Argument has empty `citations` | `reprimand` message returned |
-| Argument has 2 citations and direct rebuttal | `routing` message returned |
-| 10 rounds completed, Pro scored higher | Verdict names Pro as winner |
+| Round 2+ argument ignores a clear strawman in opponent's prior argument | `reprimand` message returned |
+| Argument has 2 citations, names a fallacy, direct rebuttal, rhetoric applied | `routing` message returned |
+| `EvaluatePersuasionScore` receives argument with strong rhetoric | `rhetoric_quality` score > 0.7 |
+| `EvaluatePersuasionScore` receives argument with no rhetorical techniques | `rhetoric_quality` score < 0.4 |
+| 10 rounds completed, Pro scored higher on all 3 dimensions | Verdict names Pro as winner |
 | Both agents score identically across rounds | Tie-breaker fires; one agent wins |
+| Verdict justification references "rhetoric" | Justification string contains round-by-round rhetoric analysis |
 | `DeclareVerdict` called before any rounds | Raises `InsufficientDataError` |
