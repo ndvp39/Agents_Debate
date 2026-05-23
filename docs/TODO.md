@@ -73,10 +73,10 @@
 
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
-| 4.1 | Write tests for `agents/base_agent.py` | Critical | 🔴 Not Started | Dev | Tests cover start, stop, send, receive, skill registration |
-| 4.2 | Implement `agents/base_agent.py` (BaseAgent) | Critical | 🔴 Not Started | Dev | Tests pass; shared logic only; ≤150 lines |
-| 4.3 | Write tests for `agents/watchdog.py` | Critical | 🔴 Not Started | Dev | Tests cover timeout detection, kill, restart |
-| 4.4 | Implement `agents/watchdog.py` (Watchdog) | Critical | 🔴 Not Started | Dev | Tests pass; auto-restarts hung process; ≤150 lines |
+| 4.1 | Write tests for `agents/base_agent.py` | Critical | ✅ Done | Dev | Tests cover start, stop, send, receive, skill registration |
+| 4.2 | Implement `agents/base_agent.py` (BaseAgent) | Critical | ✅ Done | Dev | Tests pass; shared logic only; ≤150 lines |
+| 4.3 | Write tests for `agents/watchdog.py` | Critical | ✅ Done | Dev | Tests cover timeout detection, kill, restart |
+| 4.4 | Implement `agents/watchdog.py` (Watchdog) | Critical | ✅ Done | Dev | Tests pass; auto-restarts hung process; ≤150 lines |
 
 ---
 
@@ -161,11 +161,11 @@
 | 1 — Project skeleton | 9 | 9 ✅ |
 | 2 — Shared infrastructure | 10 | 10 ✅ |
 | 3 — IPC protocol | 4 | 4 ✅ |
-| 4 — Base agent + Watchdog | 4 | 0 |
+| 4 — Base agent + Watchdog | 4 | 4 ✅ |
 | 5 — Judge agent | 4 | 0 |
 | 6 — Debater agents | 10 | 0 |
 | 7 — Orchestrator | 2 | 0 |
 | 8 — SDK + CLI | 3 | 0 |
 | 9 — Quality gates | 6 | 0 |
 | 10 — Deliverables | 6 | 0 |
-| **Total** | **70** | **35** |
+| **Total** | **70** | **39** |
