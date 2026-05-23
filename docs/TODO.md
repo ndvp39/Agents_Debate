@@ -112,8 +112,8 @@
 
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
-| 7.1 | Write tests for `services/orchestrator.py` | Critical | 🔴 Not Started | Dev | Tests cover full 10-round loop, reprimand handling, early termination, verdict receipt |
-| 7.2 | Implement `services/orchestrator.py` (DebateOrchestrator) | Critical | 🔴 Not Started | Dev | Tests pass; manages Pro→Judge→Con flow; ≤150 lines |
+| 7.1 | Write tests for `services/orchestrator.py` | Critical | ✅ Done | Dev | Tests cover full 10-round loop, reprimand handling, early termination, verdict receipt |
+| 7.2 | Implement `services/orchestrator.py` (DebateOrchestrator) | Critical | ✅ Done | Dev | Tests pass; manages Pro→Judge→Con flow; ≤150 lines |
 
 ---
 
@@ -164,8 +164,8 @@
 | 4 — Base agent + Watchdog | 4 | 4 ✅ |
 | 5 — Judge agent | 4 | 4 ✅ |
 | 6 — Debater agents | 10 | 10 ✅ |
-| 7 — Orchestrator | 2 | 0 |
+| 7 — Orchestrator | 2 | 2 ✅ |
 | 8 — SDK + CLI | 3 | 0 |
 | 9 — Quality gates | 6 | 0 |
 | 10 — Deliverables | 6 | 0 |
-| **Total** | **70** | **53** |
+| **Total** | **70** | **55** |
