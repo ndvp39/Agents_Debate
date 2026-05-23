@@ -1,5 +1,6 @@
 """CLI entry point — delegates entirely to DebateSDK. No business logic here."""
 
+from debate.sdk.factory import subprocess_factory
 from debate.sdk.sdk import DebateSDK
 from debate.shared.constants import AgentID
 from debate.shared.version import VERSION
@@ -67,14 +68,11 @@ def main() -> None:
     print(f"\nStarting debate — topic: '{topic}' | rounds: {rounds}")
     print("Please wait while agents are initialised...\n")
 
-    sdk = DebateSDK()
+    sdk = DebateSDK(process_factory=subprocess_factory)
 
     try:
         sdk.start_debate(topic, rounds)
         _display_result(sdk)
-    except NotImplementedError:
-        print("\n[INFO] Process factory not configured — running in demo mode.")
-        print("       To run a real debate, wire up subprocess spawning in DebateSDK.")
     except KeyboardInterrupt:
         print("\nDebate interrupted by user.")
     except Exception as exc:

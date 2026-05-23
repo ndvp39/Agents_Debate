@@ -26,7 +26,7 @@ class IPCChannel:
         except OSError as exc:
             raise IPCParseError(f"Failed to send message: {exc}") from exc
 
-    def receive(self, process: subprocess.Popen, timeout: float = 30.0) -> dict:
+    def receive(self, process: subprocess.Popen, timeout: float = 120.0) -> dict:
         """Read one JSON line from process stdout.
 
         Raises:

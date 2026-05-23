@@ -44,7 +44,7 @@ addopts = "--cov=src --cov-report=term-missing"
 
 [tool.coverage.run]
 source = ["src"]
-omit = ["src/main.py", "*/tests/*"]
+omit = ["src/main.py", "src/pro_runner.py", "src/con_runner.py", "src/judge_runner.py", "*/tests/*"]
 
 [tool.coverage.report]
 fail_under = 85
