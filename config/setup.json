@@ -19,8 +19,8 @@
       "max_tokens": 1024
     },
     "gemini": {
-      "debater_model": "gemini-2.5-flash",
-      "judge_model": "gemini-2.5-flash",
+      "debater_model": "gemini-2.5-flash-lite",
+      "judge_model": "gemini-2.5-flash-lite",
       "temperature": 0.7,
       "max_tokens": 1024
     }

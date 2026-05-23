@@ -10,12 +10,16 @@ All API calls include exponential-backoff retry for transient rate-limit errors.
 
 import json
 import os
+import re
 import time
 
 _PROVIDER_ENV_VAR = "LLM_PROVIDER"
 _DEFAULT_PROVIDER = "anthropic"
 _MAX_RETRIES = 4
 _RETRY_BASE_DELAY = 5.0  # seconds; doubles each attempt
+
+# Substrings that identify a *daily* quota violation inside a 429 message.
+_DAILY_QUOTA_MARKERS = ("PerDay", "per_day", "daily")
 
 
 # ------------------------------------------------------------------
@@ -85,16 +89,47 @@ def _extract_json(text: str) -> dict:
     return json.loads(text[start:end])
 
 
+def _is_rate_limit(exc: Exception) -> bool:
+    msg = str(exc)
+    return "429" in msg or "RESOURCE_EXHAUSTED" in msg or "RateLimitError" in type(exc).__name__
+
+
+def _is_daily_quota(exc: Exception) -> bool:
+    msg = str(exc)
+    return any(marker in msg for marker in _DAILY_QUOTA_MARKERS)
+
+
+def _suggested_delay(exc: Exception) -> float | None:
+    """Extract the provider-recommended wait time (seconds) from a 429 response."""
+    msg = str(exc)
+    m = re.search(r"retry in (\d+(?:\.\d+)?)", msg, re.IGNORECASE)
+    if m:
+        return float(m.group(1)) + 2  # small buffer
+    m = re.search(r'"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"', msg)
+    if m:
+        return float(m.group(1)) + 2
+    return None
+
+
 def _retry(fn):
-    """Call fn(); retry up to _MAX_RETRIES times with exponential backoff."""
+    """Smart retry: wait the provider-suggested delay for transient limits;
+    raise immediately with a clear message for daily quota exhaustion."""
     for attempt in range(_MAX_RETRIES + 1):
         try:
             return fn()
         except Exception as exc:
+            if _is_rate_limit(exc):
+                if _is_daily_quota(exc):
+                    raise RuntimeError(
+                        "Daily API quota exhausted — please try again tomorrow."
+                    ) from exc
+                if attempt < _MAX_RETRIES:
+                    delay = _suggested_delay(exc) or _RETRY_BASE_DELAY * (2 ** attempt)
+                    time.sleep(delay)
+                    continue
             if attempt == _MAX_RETRIES:
                 raise
-            delay = _RETRY_BASE_DELAY * (2 ** attempt)
-            time.sleep(delay)
+            time.sleep(_RETRY_BASE_DELAY * (2 ** attempt))
 
 
 # ------------------------------------------------------------------

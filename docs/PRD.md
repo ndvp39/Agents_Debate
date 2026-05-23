@@ -1,7 +1,8 @@
 # PRD — AI Agent Debate Orchestration System
 **Version:** 1.00  
 **Date:** 2026-05-23  
-**Course:** AI Agents MSC — Exercise 02
+**Course:** AI Agents MSC — Exercise 02  
+**Author:** Nadav Goldin
 
 ---
 

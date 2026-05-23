@@ -1,6 +1,7 @@
 # PRD — Watchdog
 **Version:** 1.00  
 **Date:** 2026-05-23  
+**Author:** Nadav Goldin  
 **File:** `src/debate/agents/watchdog.py`
 
 ---

@@ -1,6 +1,7 @@
 # PRD — Judge Agent
 **Version:** 1.01  
 **Date:** 2026-05-23  
+**Author:** Nadav Goldin  
 **Files:** `src/debate/agents/judge/judge_agent.py`, `src/debate/agents/judge/skills.py`
 
 ---

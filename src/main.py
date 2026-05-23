@@ -29,11 +29,53 @@ def _get_rounds() -> int:
     return rounds
 
 
+def _display_transcript(transcript: list) -> None:
+    print("\n" + "=" * 60)
+    print("  TRANSCRIPT")
+    print("=" * 60)
+    for msg in transcript:
+        msg_type = msg.get("message_type", "unknown")
+        if msg_type == "argument":
+            agent = msg.get("agent_id", "?")
+            rnd = msg.get("round", "?")
+            argument = msg.get("argument", "")
+            citations = msg.get("citations", [])
+            print(f"\n[Round {rnd}] {agent} argues:")
+            print(f"  {argument}")
+            if citations:
+                print("  Citations:")
+                for c in citations:
+                    print(f"    - {c}")
+        elif msg_type == "routing":
+            target = msg.get("target_agent", "?")
+            feedback = msg.get("judge_feedback", "")
+            prompt = msg.get("prompt_for_next", "")
+            print(f"\n[Judge -> {target}]")
+            if feedback:
+                print(f"  Feedback : {feedback}")
+            print(f"  Prompt   : {prompt}")
+        elif msg_type == "reprimand":
+            target = msg.get("target_agent", "?")
+            prompt = msg.get("prompt_for_next", "")
+            print(f"\n[Judge REPRIMAND -> {target}]")
+            print(f"  {prompt}")
+        elif msg_type == "verdict":
+            winner = msg.get("winner", "?")
+            scores = msg.get("scores", {})
+            justification = msg.get("justification", "")
+            print(f"\n[VERDICT]  Winner: {winner}")
+            print(f"  Scores: {scores}")
+            print(f"  {justification}")
+
+
 def _display_result(sdk: DebateSDK) -> None:
     verdict = sdk.get_verdict()
     winner = verdict.get("winner", "Unknown")
     scores = verdict.get("scores", {})
     justification = verdict.get("justification", "")
+
+    transcript = sdk.get_transcript()
+    _display_transcript(transcript)
 
     print("\n" + "=" * 60)
     print("  DEBATE COMPLETE")
@@ -49,7 +91,6 @@ def _display_result(sdk: DebateSDK) -> None:
         usd = cost.get("estimated_cost_usd", "N/A")
         print(f"\n  Cost   : {tokens} tokens  (~${usd})")
 
-    transcript = sdk.get_transcript()
     print(f"\n  Messages in transcript : {len(transcript)}")
     print("=" * 60)
 

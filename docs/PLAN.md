@@ -1,7 +1,8 @@
 # PLAN — Architecture & Design Document
 # AI Agent Debate Orchestration System
 **Version:** 1.00  
-**Date:** 2026-05-23
+**Date:** 2026-05-23  
+**Author:** Nadav Goldin
 
 ---
 
@@ -358,8 +359,8 @@ class PersuasionScore:
       "max_tokens": 1024
     },
     "gemini": {
-      "debater_model": "gemini-2.5-flash",
-      "judge_model": "gemini-2.5-flash",
+      "debater_model": "gemini-2.5-flash-lite",
+      "judge_model": "gemini-2.5-flash-lite",
       "temperature": 0.7,
       "max_tokens": 1024
     }

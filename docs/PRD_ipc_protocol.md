@@ -1,6 +1,7 @@
 # PRD — IPC Protocol
 **Version:** 1.00  
 **Date:** 2026-05-23  
+**Author:** Nadav Goldin  
 **Files:** `src/debate/ipc/schemas.py`, `src/debate/ipc/channel.py`
 
 ---

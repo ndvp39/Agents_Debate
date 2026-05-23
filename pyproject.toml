@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "agents-debate"
 version = "1.0.0"
 description = "AI Agent Debate Orchestration System — MSC Exercise 02"
+authors = [{name = "Nadav Goldin"}]
 requires-python = ">=3.10"
 dependencies = [
     "anthropic>=0.40.0",

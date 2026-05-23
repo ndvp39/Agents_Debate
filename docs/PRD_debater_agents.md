@@ -1,6 +1,7 @@
 # PRD — Debater Agents (Pro & Con)
 **Version:** 1.01  
 **Date:** 2026-05-23  
+**Author:** Nadav Goldin  
 **Files:** `src/debate/agents/debaters/base_debater.py`, `pro_agent.py`, `con_agent.py`, `web_search_tool.py`, `skills.py`
 
 ---

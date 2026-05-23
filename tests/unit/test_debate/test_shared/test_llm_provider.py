@@ -1,11 +1,15 @@
 """Tests for debate.shared.llm_provider — provider selection and callable factories."""
 
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
 from debate.shared.llm_provider import (
+    _is_daily_quota,
+    _is_rate_limit,
+    _retry,
+    _suggested_delay,
     get_active_provider,
     make_debater_llm,
     make_judge_evaluate_llm,
@@ -167,3 +171,95 @@ def test_make_judge_route_llm_gemini_returns_string():
         route = make_judge_route_llm(_setup("gemini"))
     score = MagicMock(logical_consistency=0.5, citation_strength=0.6, rhetoric_quality=0.7)
     assert route(score) == "gemini feedback"
+
+
+# ---------------------------------------------------------------------------
+# _is_rate_limit / _is_daily_quota / _suggested_delay
+# ---------------------------------------------------------------------------
+
+def test_is_rate_limit_detects_429():
+    assert _is_rate_limit(Exception("429 RESOURCE_EXHAUSTED quota exceeded"))
+
+
+def test_is_rate_limit_detects_class_name():
+    class RateLimitError(Exception):
+        pass
+    assert _is_rate_limit(RateLimitError("too many requests"))
+
+
+def test_is_rate_limit_false_for_other_errors():
+    assert not _is_rate_limit(ValueError("bad input"))
+
+
+def test_is_daily_quota_detects_per_day():
+    assert _is_daily_quota(Exception("429 GenerateRequestsPerDayPerProjectPerModel quota exceeded"))
+
+
+def test_is_daily_quota_false_for_per_minute():
+    assert not _is_daily_quota(Exception("429 GenerateRequestsPerMinutePerProjectPerModel limit"))
+
+
+def test_suggested_delay_parses_retry_in():
+    exc = Exception("You exceeded quota. Please retry in 14.3s.")
+    delay = _suggested_delay(exc)
+    assert delay == pytest.approx(16.3)  # 14.3 + 2 buffer
+
+
+def test_suggested_delay_parses_retry_delay_json():
+    exc = Exception('details: [{"retryDelay": "30s"}]')
+    delay = _suggested_delay(exc)
+    assert delay == pytest.approx(32.0)  # 30 + 2 buffer
+
+
+def test_suggested_delay_returns_none_when_absent():
+    assert _suggested_delay(Exception("some other error")) is None
+
+
+# ---------------------------------------------------------------------------
+# _retry — smart behaviour
+# ---------------------------------------------------------------------------
+
+def test_retry_succeeds_on_first_try():
+    fn = MagicMock(return_value="ok")
+    assert _retry(fn) == "ok"
+    fn.assert_called_once()
+
+
+def test_retry_raises_immediately_on_daily_quota():
+    fn = MagicMock(side_effect=Exception("429 PerDay quota limit reached"))
+    with pytest.raises(RuntimeError, match="tomorrow"):
+        _retry(fn)
+    fn.assert_called_once()  # no retries — fails fast
+
+
+def test_retry_waits_suggested_delay_for_per_minute_limit(monkeypatch):
+    calls = []
+    def fn():
+        calls.append(1)
+        if len(calls) < 3:
+            raise Exception("429 RESOURCE_EXHAUSTED. Please retry in 5s.")
+        return "done"
+
+    slept = []
+    monkeypatch.setattr("debate.shared.llm_provider.time.sleep", lambda s: slept.append(s))
+    result = _retry(fn)
+    assert result == "done"
+    assert len(calls) == 3
+    assert all(s == pytest.approx(7.0) for s in slept)  # 5 + 2 buffer each
+
+
+def test_retry_uses_exponential_backoff_for_non_rate_limit(monkeypatch):
+    fn = MagicMock(side_effect=[ValueError("bad"), ValueError("bad"), "ok"])
+    slept = []
+    monkeypatch.setattr("debate.shared.llm_provider.time.sleep", lambda s: slept.append(s))
+    result = _retry(fn)
+    assert result == "ok"
+    assert slept[0] == pytest.approx(5.0)
+    assert slept[1] == pytest.approx(10.0)
+
+
+def test_retry_re_raises_after_max_retries(monkeypatch):
+    fn = MagicMock(side_effect=ConnectionError("network down"))
+    monkeypatch.setattr("debate.shared.llm_provider.time.sleep", lambda s: None)
+    with pytest.raises(ConnectionError):
+        _retry(fn)

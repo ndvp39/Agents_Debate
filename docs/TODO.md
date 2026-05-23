@@ -2,6 +2,7 @@
 # AI Agent Debate Orchestration System
 **Version:** 1.00  
 **Date:** 2026-05-23  
+**Author:** Nadav Goldin  
 **Legend:** 🔴 Not Started | 🟡 In Progress | ✅ Done
 
 ---

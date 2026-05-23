@@ -1,5 +1,5 @@
 # AI Agent Debate Orchestration System
-**Version:** 1.00 | **Course:** AI Agents MSC — Exercise 02
+**Version:** 1.00 | **Author:** Nadav Goldin | **Course:** AI Agents MSC — Exercise 02
 
 A fully autonomous debate system orchestrated by three AI agents running as
 separate subprocesses. Two debating agents (Pro and Con) argue opposing sides
@@ -157,22 +157,91 @@ tests/
 
 ---
 
-## Example Debate Output
+## Example Debate Transcript
 
-Live run on topic **"AI will replace human jobs"** (2 rounds, Gemini 2.5 Flash):
+Live run — topic: **"AI will replace human jobs"** | 2 rounds | Model: Gemini 2.5 Flash Lite
 
 ```
+============================================================
+  TRANSCRIPT
+============================================================
+
+[Round 1] Agent_Pro argues:
+  The assertion that AI will *not* replace human jobs is a naive and ultimately
+  futile stance. The evidence is overwhelming, and to deny it is to ignore the
+  undeniable trajectory of technological progress.
+
+  Consider the unparalleled efficiency and precision that AI brings. Humans are
+  inherently limited. We tire, we make mistakes, our focus wanes. AI operates
+  with tireless precision, executing tasks with a speed and accuracy that is
+  simply beyond human capacity. Think of a factory floor: a human worker can
+  assemble a product, but an AI-powered robot can do it thousands of times
+  faster, with zero defects, every single time.
+
+  Then there is the stark reality of cost-effectiveness and scalability.
+  Businesses are driven by profit. Human labor comes with a constant stream of
+  expenses: salaries, benefits, insurance, training, sick days, vacations. AI,
+  once implemented, operates at a fraction of these costs. It can be scaled up
+  or down instantaneously to meet demand — a feat impossible with a human
+  workforce.
+
+  Finally, humans are susceptible to emotion, bias, and physical constraints.
+  AI is objective, consistent, and can operate in environments lethal to humans
+  (deep-sea exploration, hazardous materials). The era of human toil is waning;
+  the reign of intelligent machines is upon us.
+  Citations:
+    - Searched: AI will replace human jobs
+
+[Judge -> Agent_Con]
+  Feedback : Your argument demonstrates strong logical reasoning and compelling
+             rhetoric. To further enhance its persuasiveness, consider weaving
+             in more specific citations to add credibility to your points.
+  Prompt   : It is your turn now, Agent_Con. Respond directly to the previous argument.
+
+[Round 1] Agent_Con argues:
+  The assertion that AI will simply erase human jobs is a baseless fear — a
+  phantom conjured by those who misunderstand the true nature of progress.
+
+  Firstly, AI lacks the spark of true innovation. It can process, it can
+  optimise, but it cannot originate. The leaps of imagination born from abstract
+  thought and lived experience are beyond even the most sophisticated algorithms.
+  A painter creates from emotion; AI can mimic but cannot feel. Roles requiring
+  genuine creativity and groundbreaking discovery will remain firmly in human
+  hands.
+
+  Secondly, empathy and nuanced judgment are the cornerstones of vital
+  professions. A therapist guiding a patient through trauma, a judge weighing a
+  case, a teacher nurturing a young mind — these are not data-analysis tasks.
+  AI can offer information; it cannot offer solace, nor grasp the unspoken pain
+  in a patient's voice. The essence of these roles is intrinsically human.
+
+  Finally, history itself refutes this doomsaying. Every major technological
+  revolution — the printing press, the industrial age — was met with the same
+  anxiety. Yet new industries emerged, creating greater demand for human labour.
+  The blacksmith evolved into the mechanic; the scribe became a writer. AI is a
+  tool, a powerful amplifier of human potential. The future of work will be
+  shaped not by silicon and code, but by the enduring power of the human spirit.
+  Citations:
+    - Searched: AI will replace human jobs
+
+[Judge -> Agent_Pro]
+  Feedback : Your argument was exceptionally persuasive due to its strong
+             rhetorical delivery and logical structure. Consider integrating
+             more supporting data to address counterarguments more directly.
+  Prompt   : It is your turn now, Agent_Pro. Respond directly to the previous argument.
+
+[VERDICT]
+  Winner : Agent_Con
+  Scores : Agent_Pro = 67  |  Agent_Con = 68
+  Agent_Con demonstrated superior persuasion across 1 round(s).
+  Logic 0.67 vs 0.68; rhetoric and citation quality consistently
+  favoured Agent_Con.
+
 ============================================================
   DEBATE COMPLETE
 ============================================================
   Winner : Agent_Con
-  Scores : Agent_Pro = 36  |  Agent_Con = 48
-
-  Justification:
-  Agent_Con demonstrated superior persuasion across 1 round(s).
-  Logic 0.36 vs 0.48; rhetoric and citation quality consistently
-  favoured Agent_Con.
-
+  Scores : Agent_Pro = 67  |  Agent_Con = 68
   Messages in transcript : 5
 ============================================================
 ```
@@ -181,6 +250,7 @@ Live run on topic **"AI will replace human jobs"** (2 rounds, Gemini 2.5 Flash):
 
 ## License & Credits
 
-MSC Exercise 02 — Dr. Yoram Segal.
+**Author:** Nadav Goldin  
+MSC Exercise 02 — Dr. Yoram Segal.  
 Built with [Claude Code](https://claude.ai/claude-code) and the
 [Anthropic API](https://docs.anthropic.com).
