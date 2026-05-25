@@ -52,8 +52,6 @@ class DebateOrchestrator:
         rounds_completed = 0     # complete exchanges (Pro + Con = 1 round)
         verdict: dict = {}
 
-        self._register_watchdog(pro_proc, con_proc, judge_proc)
-
         initial = {
             "message_type": MessageType.ROUTING,
             "target_agent": AgentID.PRO,
@@ -65,6 +63,8 @@ class DebateOrchestrator:
         next_proc = con_proc
 
         try:
+            # Register watchdog inside the try so _shutdown fires even if registration fails.
+            self._register_watchdog(pro_proc, con_proc, judge_proc)
             self._channel.send(current_proc, initial)
 
             while rounds_completed < rounds:
@@ -114,8 +114,26 @@ class DebateOrchestrator:
         self._watchdog.register(judge_proc, AgentID.JUDGE, lambda: judge_proc)
 
     def _shutdown(self, *procs) -> None:
+        """Terminate all agent subprocesses and release OS resources.
+
+        Three-phase cleanup (all failures suppressed so every process is attempted):
+          1. Close stdin — unblocks any subprocess waiting on a pipe read.
+          2. terminate() — sends SIGTERM (Unix) / TerminateProcess (Windows).
+          3. wait(3 s) — reaps the process; falls back to kill() + wait() if it lingers.
+        """
+        for proc in procs:
+            with contextlib.suppress(Exception):
+                if proc.stdin and not proc.stdin.closed:
+                    proc.stdin.close()
         for proc in procs:
             with contextlib.suppress(Exception):
                 proc.terminate()
+        for proc in procs:
+            with contextlib.suppress(Exception):
+                try:
+                    proc.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
         if self._watchdog:
             self._watchdog.stop()

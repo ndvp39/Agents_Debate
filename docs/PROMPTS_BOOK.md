@@ -1,8 +1,9 @@
 # Prompts Book — AI Agent Debate System
 
 **Author:** Nadav Goldin  
-**Version:** 1.00  
-**Date:** 2026-05-23
+**Version:** 1.02  
+**Date:** 2026-05-25  
+**Change:** Updated to reflect 4-section verdict format, ZERO-ANCHORING evaluate prompt, three-context-block injection, and 3-directive route prompt.
 
 ---
 
@@ -399,24 +400,38 @@ if round_number >= 2 and fallacy_ignored:
 
 ### Judge Skill 2 — EvaluatePersuasionScore
 
-**Source:** `src/debate/agents/judge/skills.py`, class `EvaluatePersuasionScore`
+**Source:** `src/debate/agents/judge/skills.py`, class `EvaluatePersuasionScore`  
+**PersuasionScore dataclass:** `src/debate/agents/judge/verdict.py`
 
-**Purpose:** Score the submitted argument on three dimensions (logical consistency, citation strength, rhetoric quality) by delegating to the structured `evaluate_llm` callable. Incorporates `previous_feedback` context so the Judge can penalise debaters who ignore prior instructions.
+**Purpose:** Score the submitted argument on three dimensions by delegating to the `evaluate_llm` callable. Prepends up to three context blocks to the argument text before scoring.
 
-#### Context Engineering: previous_feedback Injection
+#### Context Engineering: Three-Block Injection
 
-When `previous_feedback` is non-empty, the argument text is wrapped before being sent to the evaluate LLM:
+Before the argument text is sent to the evaluate LLM, up to three context blocks are prepended (each only if the relevant prior state exists):
 
+**Block 1 — FEEDBACK ENFORCEMENT** (when `previous_feedback` is non-empty):
 ```
-[JUDGE CONTEXT: You previously instructed this debater: '{previous_feedback}'.
-Penalize the score if this feedback was ignored.]
-
-{argument}
+[FEEDBACK ENFORCEMENT: Your previous instruction to this debater was: '{previous_feedback}'.
+Penalise all dimensions if ignored; award a score boost if followed well.]
 ```
 
-The scoring call then receives this augmented text alongside the citations list.
+**Block 2 — NOVELTY CHECK** (when the agent has argued before):
+```
+[NOVELTY CHECK: This agent's prior argument started: '{snippet (first 300 chars)}'.
+If the current argument repeats the same core claims without adding new evidence, angles,
+or refutations, penalise logical_consistency and citation_strength significantly.]
+```
 
-#### Score Object
+**Block 3 — REFUTATION CHECK** (when the opponent has argued before):
+```
+[REFUTATION CHECK: The opponent's most recent argument started: '{snippet (first 300 chars)}'.
+If this agent failed to directly counter or refute a specific attack made by the opponent,
+penalise logical_consistency.]
+```
+
+The augmented text (`blocks + "\n\n" + argument`) is passed to `evaluate_llm(argument, citations)`.
+
+#### Score Object (defined in `verdict.py`)
 
 ```python
 @dataclass
@@ -436,12 +451,11 @@ class PersuasionScore:
         )
 ```
 
-The actual weight constants (`SCORE_WEIGHT_LOGIC`, `SCORE_WEIGHT_CITATION`, `SCORE_WEIGHT_RHETORIC`) are defined in `shared/constants.py`.
-
 #### Rationale and Design Decisions
 
-- **Three-dimension scoring** — A single holistic score gives no actionable feedback. Separating logic, citation, and rhetoric means the Judge's routing feedback can be specific ("your citation score dropped — add data") rather than generic ("do better").
-- **`previous_feedback` penalisation context** — Without this injection, the evaluate LLM sees only the argument text and has no way to know whether the debater incorporated prior advice. Adding the context shifts the scoring model from purely evaluative to behaviourally aware, closing the feedback accountability loop.
+- **Three-context-block injection** — Each block closes a different accountability gap. FEEDBACK ENFORCEMENT penalises non-compliance. NOVELTY CHECK prevents lazy argument repetition. REFUTATION CHECK ensures debaters cannot ignore direct attacks without a score consequence.
+- **ZERO-ANCHORING evaluate prompt** — The evaluate LLM is instructed to treat each argument on its own merits and shift scores immediately for devastating counter-arguments, ignoring prior scoring patterns. Documented in Section 4.1.
+- **Three-dimension scoring** — Separating logic, citation, and rhetoric enables dimension-specific routing feedback rather than generic "do better" advice.
 - **Score the evaluator prompt is documented in Section 4.**
 
 ---
@@ -450,11 +464,11 @@ The actual weight constants (`SCORE_WEIGHT_LOGIC`, `SCORE_WEIGHT_CITATION`, `SCO
 
 **Source:** `src/debate/agents/judge/skills.py`, class `RouteTurn`
 
-**Purpose:** Produce the `RoutingMessage` that directs the next debater's turn. Calls the route LLM to generate 1–2 sentences of constructive feedback from the score, then constructs the `prompt_for_next` string — with or without a reminder of `previous_feedback`.
+**Purpose:** Produce the `RoutingMessage` that directs the next debater's turn. Builds the full route prompt internally, calls the route LLM for 2–3 sentences of targeted feedback, then assembles the `prompt_for_next` field with an optional previous-instruction reminder.
 
 #### Routing Prompt Construction
 
-The route LLM call (documented in Section 4) receives the `PersuasionScore` object and generates free-text feedback. The `prompt_for_next` field is then assembled deterministically:
+`RouteTurn` builds the complete prompt itself (see Section 4.2 for the full template). The route LLM returns free-text feedback which becomes `judge_feedback`. The `prompt_for_next` field is then assembled deterministically:
 
 **Without previous_feedback:**
 ```
@@ -487,9 +501,9 @@ You MUST address this directive explicitly. Failure to comply will result in a s
 
 ### Judge Skill 4 — DeclareVerdict
 
-**Source:** `src/debate/agents/judge/skills.py`, class `DeclareVerdict`
+**Source:** `src/debate/agents/judge/verdict.py`, class `DeclareVerdict` + helper `_build_verdict_justification`
 
-**Purpose:** Compute cumulative weighted scores across all rounds, resolve ties, and produce the final `VerdictMessage`. This skill is **fully deterministic** — it performs arithmetic only, with no LLM call.
+**Purpose:** Compute cumulative weighted scores across all rounds, resolve ties, and produce the final `VerdictMessage` with a **comprehensive, four-section justification**. This skill is **fully deterministic** — it performs arithmetic only, with no LLM call.
 
 #### Logic (No Prompt — Deterministic)
 
@@ -509,20 +523,48 @@ if abs(pro_avg - con_avg) < 1e-9:
 winner = AgentID.PRO if pro_avg > con_avg else AgentID.CON
 ```
 
-The justification string is assembled as:
+#### Justification Format (Four-Section, ~600–1000 characters)
+
+The justification is constructed by `_build_verdict_justification()` and consists of exactly four named sections separated by double newlines:
 
 ```
-{winner} demonstrated superior persuasion across {rounds} round(s).
-Logic {pro_avg:.2f} vs {con_avg:.2f};
-rhetoric and citation quality consistently favoured {winner}.
+KEY CLASHES — Round {N} was the most decisive exchange: {winner} scored {X} versus
+{loser}'s {Y} (margin: {±Z}). [Narrowest-margin note if multi-round debate.]
+Across all {rounds} round(s), {winner} consistently delivered arguments with greater
+causal precision, stronger evidential grounding, and more effective rhetorical
+execution than {loser}.
+
+FEEDBACK ADHERENCE — {winner}'s scores {rose/dipped/held steady} ({early:.2f}->{late:.2f}),
+reflecting [trend interpretation]. {loser}'s performance {trend}: [responsiveness
+assessment].
+
+SCORING BREAKDOWN —
+  Logical Consistency (weight 0.50):  {winner} {wl:.2f}  |  {loser} {ll:.2f}
+  Citation Strength   (weight 0.30):  {winner} {wc:.2f}  |  {loser} {lc:.2f}
+  Rhetoric Quality    (weight 0.20):  {winner} {wr:.2f}  |  {loser} {lr:.2f}
+  Final Score:                        {winner} {winner_pct}%  |  {loser} {loser_pct}%
+
+FINAL CONCLUSION — {winner} wins this debate with a final score of {winner_pct}%
+versus {loser_pct}% for {loser} across {rounds} round(s). The verdict rests primarily
+on superior {primary_dimension}, where {winner} held a clear and sustained advantage.
+Under the cumulative weighted formula (logic=0.50, citation=0.30, rhetoric=0.20), this
+dimension proved determinative.
 ```
+
+**KEY CLASHES analysis:** Identifies the round with the largest winner−loser score margin (most decisive) and, if multi-round, the round with the smallest margin (least decisive) — noting whether even the narrowest round confirmed winner's superiority or represented a genuine counter.
+
+**FEEDBACK ADHERENCE analysis:** Compares the average weighted score from the first half of rounds vs. the second half per agent. If late > early + 0.02 → "improved"; if late < early − 0.02 → "declined"; otherwise "held steady". Lookup tables map each trend to a fixed interpretive sentence for each agent role (winner/loser).
+
+**Primary dimension:** The FINAL CONCLUSION names the dimension with the largest per-dimension gap (winner_avg − loser_avg), formatted as `"logical consistency (weight 0.50)"`, `"citation strength (weight 0.30)"`, or `"rhetoric quality (weight 0.20)"`.
 
 #### Rationale and Design Decisions
 
-- **Deterministic verdict** — Verdicts must be reproducible and not subject to LLM variance. A human student reviewing results must be able to verify the winner from the score log alone.
-- **Citation-strength tie-break** — Among the three score dimensions, citation strength most directly reflects verifiable effort (providing sources). It is therefore the fairest single-axis tie-breaker.
-- **No-tie guarantee** — The `+0.01` nudge ensures `DeclareVerdict` always produces a unique winner. This is required because `VerdictMessage` schema does not allow a draw; the debate system is designed to always produce a binary outcome.
-- **`MIN_JUSTIFICATION_LENGTH` padding** — The justification string is padded with spaces if it falls below the minimum length constant, ensuring the schema validation in `VerdictMessage` always passes.
+- **Four sections not six** — The original six-section format was redundant: LOGICAL CONSISTENCY, CITATION STRENGTH, and RHETORIC QUALITY were separate paragraphs saying the same thing that the SCORING BREAKDOWN table now expresses in three aligned rows. The four-section format is denser, more scannable, and still covers every diagnostic dimension.
+- **KEY CLASHES replaces OVERALL VERDICT** — Round-level pairwise analysis provides more concrete evidence for the verdict than a general superiority statement; it shows exactly *when* the debate was decided.
+- **Deterministic verdict** — Verdicts must be reproducible. All information needed is in the `PersuasionScore` dataclasses; no LLM variance needed.
+- **Citation-strength tie-break** — Citation strength most directly reflects verifiable effort; it is the fairest single-axis tie-breaker.
+- **No-tie guarantee** — The `+0.01` nudge ensures `DeclareVerdict` always produces a unique winner, as `VerdictMessage` schema forbids draws.
+- **No LLM call** — Using an LLM to write the justification would introduce variance and latency.
 
 ---
 
@@ -532,13 +574,24 @@ These prompts live in `src/debate/shared/llm_provider.py` and are used exclusive
 
 ### 4.1 — Evaluate Prompt (EvaluatePersuasionScore)
 
-Used by both `_anthropic_evaluate_llm` and `_gemini_evaluate_llm`. The argument text passed in may be pre-wrapped with the `previous_feedback` context block (see Section 3, Skill 2) before this prompt is constructed.
+Used by both `make_anthropic_evaluate_llm` and `make_gemini_evaluate_llm` (in `llm_anthropic.py` / `llm_gemini.py`). The argument text passed in is pre-wrapped with up to three context blocks by `EvaluatePersuasionScore.run()` (see Section 3, Skill 2) before this prompt is constructed.
 
 #### Prompt Template
 
 ```
-Score this debate argument on three dimensions from 0.0 to 1.0.
-Argument: {argument}
+You are an impartial, stateless debate judge. Evaluate THIS argument on its own merits.
+ZERO-ANCHORING: Do NOT favour either side. If a devastating counter-argument is
+delivered, shift scores immediately — ignore all prior scoring patterns.
+
+Score on three dimensions (0.0 to 1.0):
+• logical_consistency — Causal coherence; exploits opponent's weakest point.
+  PENALISE: circular reasoning, unsupported assertions, ignoring a direct attack,
+  repeating prior claims without new angles.
+• citation_strength — Specific, credible, contextually relevant sourcing.
+  PENALISE: repeating the same sources from a prior round without new evidence.
+• rhetoric_quality — Effective ethos, pathos, logos; memorability; persuasiveness.
+
+{argument}
 Citations: {citations}
 
 Reply with ONLY a raw JSON object, no markdown, no code fences:
@@ -549,7 +602,7 @@ Reply with ONLY a raw JSON object, no markdown, no code fences:
 
 | Field | Source |
 |-------|--------|
-| `{argument}` | `msg.argument` (possibly prefixed with judge-context block) |
+| `{argument}` | `msg.argument` prefixed with FEEDBACK ENFORCEMENT / NOVELTY CHECK / REFUTATION CHECK blocks |
 | `{citations}` | `msg.citations` list |
 
 **Expected output:**
@@ -557,26 +610,32 @@ Reply with ONLY a raw JSON object, no markdown, no code fences:
 {"logical_consistency": 0.82, "citation_strength": 0.65, "rhetoric_quality": 0.78}
 ```
 
-The `_extract_json()` helper strips any markdown fences the model might add despite the instruction, then parses the JSON.
+The `_extract_json()` helper (in `llm_retry.py`) strips any markdown fences the model might add, then parses the JSON.
 
 #### Rationale and Design Decisions
 
-- **"ONLY a raw JSON object, no markdown, no code fences"** — This instruction is repeated twice (implicitly by the example format). Markdown fences cause `json.loads()` to fail; the instruction minimises post-processing failures even though `_extract_json()` provides a fallback strip.
-- **0.0–1.0 scale** — Normalised floats integrate cleanly into the weighted-sum formula in `PersuasionScore.weighted` without requiring any post-normalisation step.
-- **Three dimensions not one** — See Section 3, Skill 2 rationale. Separate scores enable dimension-specific feedback in `RouteTurn`.
+- **ZERO-ANCHORING** — Prevents the LLM from developing positional bias across rounds. The instruction forces score shifts to happen whenever a strong counter-argument is presented, regardless of cumulative momentum.
+- **Per-dimension PENALISE clauses** — Explicit penalty categories make the evaluation criteria measurable: a repetitive argument is penalised on `logical_consistency` and `citation_strength`; an uncountered attack is penalised on `logical_consistency`. This converts vague rubrics into actionable scoring rules.
+- **"ONLY a raw JSON object, no markdown, no code fences"** — Markdown fences cause `json.loads()` to fail; the instruction minimises post-processing failures even though `_extract_json()` provides a fallback.
 - **`max_tokens=256`** — The response is a JSON object of three floats; 256 tokens is generous without wasting quota.
 
 ---
 
 ### 4.2 — Route Prompt (RouteTurn feedback generation)
 
-Used by both `_anthropic_route_llm` and `_gemini_route_llm`.
+Used by both `make_anthropic_route_llm` and `make_gemini_route_llm` (in `llm_anthropic.py` / `llm_gemini.py`). The full prompt is built by `RouteTurn.run()` in `skills.py` and passed as a single string to the route LLM callable.
 
 #### Prompt Template
 
 ```
-A debate argument scored: logic={logic:.2f}, citation={citation:.2f}, rhetoric={rhetoric:.2f}.
-Give 1-2 sentences of constructive feedback.
+You are a strict debate judge providing round-specific feedback.
+This argument scored: logic={logic:.2f}, citation={citation:.2f}, rhetoric={rhetoric:.2f}.
+[Optional: Your previous instruction to this agent was: '{previous_feedback}'.
+State explicitly whether it was followed this round.]
+Give 2-3 sentences of precise, actionable feedback:
+1. Name the weakest scoring dimension and explain exactly why it lost points.
+2. If arguments were repeated from a prior round, call this out explicitly.
+3. Give one concrete, specific instruction this agent MUST act on next round.
 ```
 
 **Inputs:**
@@ -586,14 +645,16 @@ Give 1-2 sentences of constructive feedback.
 | `{logic:.2f}` | `score.logical_consistency` |
 | `{citation:.2f}` | `score.citation_strength` |
 | `{rhetoric:.2f}` | `score.rhetoric_quality` |
+| `{previous_feedback}` | Previous round's `judge_feedback` for this agent (omitted if empty) |
 
-**Expected output:** 1–2 sentences of natural-language feedback, stored as `judge_feedback` in the `RoutingMessage` and threaded to the next debater.
+**Expected output:** 2–3 sentences of natural-language feedback, stored as `judge_feedback` in the `RoutingMessage` and threaded to both the next debater's `BuildCounterArgument` and `ApplyRhetoric` skills.
 
 #### Rationale and Design Decisions
 
-- **Numeric scores in prompt** — Including the actual scores gives the LLM an anchor for calibrated feedback. Without numbers, feedback tends toward generic encouragement; with them, the model produces targeted advice ("your citation score of 0.45 is low — provide more sources").
-- **"1-2 sentences"** — Constrained length keeps feedback actionable. Long feedback confuses the debater skill pipeline because `BuildCounterArgument` incorporates it verbatim; a paragraph-long mandate crowds out the actual argument instruction.
-- **`max_tokens=150`** — Matches the 1–2 sentence constraint with a comfortable margin.
+- **Full prompt built by RouteTurn** — Previously the route LLM received only a score object; now `RouteTurn.run()` builds the complete prompt string and calls `llm_call(prompt: str) -> str`. This lets the skill inject all context (scores, previous-feedback follow-up check, numbered directives) in a single structured call without the LLM provider needing to know about debate state.
+- **Numbered 3-directive structure** — Directives 1–3 map to three distinct failure modes: dim weakness, repetition, and non-compliance with prior feedback. Each directive is mandatory, preventing the LLM from producing only generic praise.
+- **"2-3 sentences"** — More specific than "1-2 sentences" but still short enough to remain actionable when incorporated verbatim by `BuildCounterArgument`.
+- **`max_tokens=200`** — Raised from 150 to accommodate the three-directive structure with a comfortable margin.
 
 ---
 

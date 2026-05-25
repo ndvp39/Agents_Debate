@@ -1,5 +1,6 @@
 """DebateSDK — single public entry point for all debate system operations."""
 
+import contextlib
 from collections.abc import Callable
 
 from debate.services.orchestrator import DebateOrchestrator, DebateResult
@@ -39,9 +40,23 @@ class DebateSDK:
     # ------------------------------------------------------------------
 
     def start_debate(self, topic: str, rounds: int) -> DebateResult:
-        """Spawn agents, run the debate loop, and store the result."""
-        pro_proc, con_proc, judge_proc = self._process_factory(topic, rounds)
-        self._result = self._orchestrator.run(topic, rounds, pro_proc, con_proc, judge_proc)
+        """Spawn agents, run the debate loop, and store the result.
+
+        Guarantees no orphan processes: the orchestrator's try/finally handles the
+        normal path; this outer guard covers the gap between factory completion and
+        the orchestrator's own try block, and handles partial factory failures.
+        """
+        procs: list = []
+        try:
+            pro_proc, con_proc, judge_proc = self._process_factory(topic, rounds)
+            procs = [pro_proc, con_proc, judge_proc]
+            self._result = self._orchestrator.run(topic, rounds, pro_proc, con_proc, judge_proc)
+        except Exception:
+            for p in procs:
+                with contextlib.suppress(Exception):
+                    p.kill()
+                    p.wait()
+            raise
         return self._result
 
     # ------------------------------------------------------------------

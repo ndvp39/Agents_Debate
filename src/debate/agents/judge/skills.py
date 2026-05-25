@@ -1,41 +1,14 @@
-"""Judge agent skills — EnforceDebateMechanics, EvaluatePersuasionScore, RouteTurn, DeclareVerdict."""
+"""Judge agent skills — EnforceDebateMechanics, EvaluatePersuasionScore, RouteTurn."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
 
-from debate.ipc.schemas import ArgumentMessage, ReprimandMessage, RoutingMessage, VerdictMessage
-from debate.shared.constants import (
-    MIN_JUSTIFICATION_LENGTH,
-    SCORE_WEIGHT_CITATION,
-    SCORE_WEIGHT_LOGIC,
-    SCORE_WEIGHT_RHETORIC,
-    AgentID,
-)
-from debate.shared.exceptions import InsufficientDataError
+from debate.agents.judge.verdict import PersuasionScore
+from debate.ipc.schemas import ArgumentMessage, ReprimandMessage, RoutingMessage
 
 _AGREEMENT_PHRASES = (
     "i agree", "you make a good point", "that's correct",
     "you're right", "well said", "i concede", "you are correct",
 )
-
-
-@dataclass
-class PersuasionScore:
-    """Round-level persuasion score for one debater."""
-
-    agent_id: str
-    round: int
-    logical_consistency: float
-    citation_strength: float
-    rhetoric_quality: float
-
-    @property
-    def weighted(self) -> float:
-        return (
-            SCORE_WEIGHT_LOGIC * self.logical_consistency
-            + SCORE_WEIGHT_CITATION * self.citation_strength
-            + SCORE_WEIGHT_RHETORIC * self.rhetoric_quality
-        )
 
 
 class EnforceDebateMechanics:
@@ -71,13 +44,39 @@ class EnforceDebateMechanics:
 class EvaluatePersuasionScore:
     """Score one argument on three dimensions via an LLM call."""
 
-    def run(self, msg: ArgumentMessage, llm_call: Callable, previous_feedback: str = "") -> PersuasionScore:
+    def run(
+        self,
+        msg: ArgumentMessage,
+        llm_call: Callable,
+        previous_feedback: str = "",
+        previous_own_argument: str = "",
+        opponent_last_argument: str = "",
+    ) -> PersuasionScore:
         argument = msg.argument
+        ctx: list[str] = []
         if previous_feedback:
-            argument = (
-                f"[JUDGE CONTEXT: You previously instructed this debater: '{previous_feedback}'. "
-                f"Penalize the score if this feedback was ignored.]\n\n{argument}"
+            ctx.append(
+                f"[FEEDBACK ENFORCEMENT: Your previous instruction to this debater was: "
+                f"'{previous_feedback}'. Penalise all dimensions if ignored; "
+                f"award a score boost if followed well.]"
             )
+        if previous_own_argument:
+            snippet = previous_own_argument[:300]
+            ctx.append(
+                f"[NOVELTY CHECK: This agent's prior argument started: '{snippet}'. "
+                f"If the current argument repeats the same core claims without adding new "
+                f"evidence, angles, or refutations, penalise logical_consistency and "
+                f"citation_strength significantly.]"
+            )
+        if opponent_last_argument:
+            snippet = opponent_last_argument[:300]
+            ctx.append(
+                f"[REFUTATION CHECK: The opponent's most recent argument started: '{snippet}'. "
+                f"If this agent failed to directly counter or refute a specific attack made "
+                f"by the opponent, penalise logical_consistency.]"
+            )
+        if ctx:
+            argument = "\n".join(ctx) + "\n\n" + argument
         result = llm_call(argument, msg.citations)
         return PersuasionScore(
             agent_id=msg.agent_id,
@@ -91,8 +90,29 @@ class EvaluatePersuasionScore:
 class RouteTurn:
     """Produce a routing message directing the next debater."""
 
-    def run(self, score: PersuasionScore, next_agent: str, llm_call: Callable, previous_feedback: str = "") -> RoutingMessage:
-        feedback = str(llm_call(score))
+    def run(
+        self,
+        score: PersuasionScore,
+        next_agent: str,
+        llm_call: Callable,
+        previous_feedback: str = "",
+    ) -> RoutingMessage:
+        fb_line = (
+            f" Your previous instruction to this agent was: '{previous_feedback}'. "
+            "State explicitly whether it was followed this round."
+            if previous_feedback else ""
+        )
+        route_prompt = (
+            f"You are a strict debate judge providing round-specific feedback. "
+            f"This argument scored: logic={score.logical_consistency:.2f}, "
+            f"citation={score.citation_strength:.2f}, "
+            f"rhetoric={score.rhetoric_quality:.2f}.{fb_line}\n"
+            "Give 2-3 sentences of precise, actionable feedback:\n"
+            "1. Name the weakest scoring dimension and explain exactly why it lost points.\n"
+            "2. If arguments were repeated from a prior round, call this out explicitly.\n"
+            "3. Give one concrete, specific instruction this agent MUST act on next round."
+        )
+        feedback = str(llm_call(route_prompt))
         if previous_feedback:
             prompt = (
                 f"It is your turn now, {next_agent}. Respond directly to the previous argument. "
@@ -105,51 +125,4 @@ class RouteTurn:
             target_agent=next_agent,
             judge_feedback=feedback,
             prompt_for_next=prompt,
-        )
-
-
-class DeclareVerdict:
-    """Compute final cumulative scores and produce a verdict message (no ties)."""
-
-    def run(
-        self,
-        scores_pro: list[PersuasionScore],
-        scores_con: list[PersuasionScore],
-    ) -> VerdictMessage:
-        if not scores_pro or not scores_con:
-            raise InsufficientDataError("No scores recorded — cannot declare verdict.")
-
-        pro_avg = sum(s.weighted for s in scores_pro) / len(scores_pro)
-        con_avg = sum(s.weighted for s in scores_con) / len(scores_con)
-
-        if abs(pro_avg - con_avg) < 1e-9:
-            pro_cite = sum(s.citation_strength for s in scores_pro) / len(scores_pro)
-            con_cite = sum(s.citation_strength for s in scores_con) / len(scores_con)
-            if pro_cite >= con_cite:
-                pro_avg += 0.01
-            else:
-                con_avg += 0.01
-
-        winner = AgentID.PRO if pro_avg > con_avg else AgentID.CON
-        pro_pct = round(pro_avg * 100)
-        con_pct = round(con_avg * 100)
-        if pro_pct == con_pct:
-            if pro_avg > con_avg:
-                pro_pct += 1
-            else:
-                con_pct += 1
-
-        rounds = max(len(scores_pro), len(scores_con))
-        justification = (
-            f"{winner} demonstrated superior persuasion across {rounds} round(s). "
-            f"Logic {pro_avg:.2f} vs {con_avg:.2f}; "
-            f"rhetoric and citation quality consistently favoured {winner}."
-        )
-        if len(justification) < MIN_JUSTIFICATION_LENGTH:
-            justification += " " * (MIN_JUSTIFICATION_LENGTH - len(justification))
-
-        return VerdictMessage(
-            winner=winner,
-            scores={AgentID.PRO: pro_pct, AgentID.CON: con_pct},
-            justification=justification,
         )

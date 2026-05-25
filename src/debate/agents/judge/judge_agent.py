@@ -4,12 +4,11 @@ from collections.abc import Callable
 
 from debate.agents.base_agent import BaseAgent
 from debate.agents.judge.skills import (
-    DeclareVerdict,
     EnforceDebateMechanics,
     EvaluatePersuasionScore,
-    PersuasionScore,
     RouteTurn,
 )
+from debate.agents.judge.verdict import DeclareVerdict, PersuasionScore
 from debate.ipc.schemas import ArgumentMessage
 from debate.shared.constants import AgentID
 
@@ -65,7 +64,16 @@ class JudgeAgent(BaseAgent):
             return
 
         previous_fb = self._last_feedback_sent.get(msg.agent_id, "")
-        score = self._evaluate.run(msg, self._evaluate_llm, previous_feedback=previous_fb)
+        prev_own_arg = self._last_arguments.get(msg.agent_id, "")
+        opponent = AgentID.CON if msg.agent_id == AgentID.PRO else AgentID.PRO
+        opp_last_arg = self._last_arguments.get(opponent, "")
+        score = self._evaluate.run(
+            msg,
+            self._evaluate_llm,
+            previous_feedback=previous_fb,
+            previous_own_argument=prev_own_arg,
+            opponent_last_argument=opp_last_arg,
+        )
         self._scores[msg.agent_id].append(score)
         self._last_arguments[msg.agent_id] = msg.argument
         self._round += 1

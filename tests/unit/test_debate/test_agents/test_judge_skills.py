@@ -3,12 +3,11 @@
 import pytest
 
 from debate.agents.judge.skills import (
-    DeclareVerdict,
     EnforceDebateMechanics,
     EvaluatePersuasionScore,
-    PersuasionScore,
     RouteTurn,
 )
+from debate.agents.judge.verdict import DeclareVerdict, PersuasionScore
 from debate.ipc.schemas import ArgumentMessage
 from debate.shared.constants import (
     SCORE_WEIGHT_CITATION,
@@ -152,7 +151,7 @@ def test_evaluate_calls_llm_with_argument_and_citations():
 
 def test_route_turn_produces_routing_message():
     from debate.ipc.schemas import RoutingMessage  # noqa: PLC0415
-    def llm_call(s):
+    def llm_call(prompt: str):
         return "Strong argument noted."
     routing = RouteTurn().run(_score(), AgentID.CON, llm_call)
     assert isinstance(routing, RoutingMessage)
@@ -160,14 +159,14 @@ def test_route_turn_produces_routing_message():
 
 
 def test_route_turn_respects_next_agent():
-    def llm_call(s):
+    def llm_call(prompt: str):
         return "Feedback."
     routing = RouteTurn().run(_score(), AgentID.PRO, llm_call)
     assert routing.target_agent == AgentID.PRO
 
 
 def test_route_turn_includes_llm_feedback():
-    def llm_call(s):
+    def llm_call(prompt: str):
         return "Outstanding rhetoric and solid citations."
     routing = RouteTurn().run(_score(), AgentID.CON, llm_call)
     assert "Outstanding" in routing.judge_feedback

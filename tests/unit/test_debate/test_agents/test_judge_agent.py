@@ -18,7 +18,7 @@ def _evaluate_llm(argument, citations):
     return {"logical_consistency": 0.8, "citation_strength": 0.7, "rhetoric_quality": 0.6}
 
 
-def _route_llm(score):
+def _route_llm(prompt: str):
     return "Strong argument with solid citations and clear rhetoric."
 
 

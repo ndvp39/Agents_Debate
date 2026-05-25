@@ -101,7 +101,7 @@ def test_make_debater_llm_anthropic_calls_api():
 def test_make_debater_llm_gemini_returns_callable():
     mock_types = MagicMock()
     with patch.dict(sys.modules, {"google.genai": MagicMock(), "google.genai.types": mock_types}), \
-         patch("debate.shared.llm_provider._gemini_client", return_value=_mock_gemini_client()):
+         patch("debate.shared.llm_gemini._gemini_client", return_value=_mock_gemini_client()):
         llm = make_debater_llm(_setup("gemini"))
     assert callable(llm)
 
@@ -111,7 +111,7 @@ def test_make_debater_llm_gemini_calls_api():
     mock_client.models.generate_content.return_value.text = "gemini answer"
     mock_types = MagicMock()
     with patch.dict(sys.modules, {"google.genai": MagicMock(), "google.genai.types": mock_types}), \
-         patch("debate.shared.llm_provider._gemini_client", return_value=mock_client):
+         patch("debate.shared.llm_gemini._gemini_client", return_value=mock_client):
         llm = make_debater_llm(_setup("gemini"))
     result = llm("test prompt")
     assert result == "gemini answer"
@@ -141,7 +141,7 @@ def test_make_judge_evaluate_llm_gemini_returns_dict():
     )
     mock_types = MagicMock()
     with patch.dict(sys.modules, {"google.genai": MagicMock(), "google.genai.types": mock_types}), \
-         patch("debate.shared.llm_provider._gemini_client", return_value=mock_client):
+         patch("debate.shared.llm_gemini._gemini_client", return_value=mock_client):
         evaluate = make_judge_evaluate_llm(_setup("gemini"))
     result = evaluate("argument text", ["cite"])
     assert "logical_consistency" in result
@@ -167,7 +167,7 @@ def test_make_judge_route_llm_gemini_returns_string():
     mock_client.models.generate_content.return_value.text = "gemini feedback"
     mock_types = MagicMock()
     with patch.dict(sys.modules, {"google.genai": MagicMock(), "google.genai.types": mock_types}), \
-         patch("debate.shared.llm_provider._gemini_client", return_value=mock_client):
+         patch("debate.shared.llm_gemini._gemini_client", return_value=mock_client):
         route = make_judge_route_llm(_setup("gemini"))
     score = MagicMock(logical_consistency=0.5, citation_strength=0.6, rhetoric_quality=0.7)
     assert route(score) == "gemini feedback"
@@ -241,7 +241,7 @@ def test_retry_waits_suggested_delay_for_per_minute_limit(monkeypatch):
         return "done"
 
     slept = []
-    monkeypatch.setattr("debate.shared.llm_provider.time.sleep", lambda s: slept.append(s))
+    monkeypatch.setattr("debate.shared.llm_retry.time.sleep", lambda s: slept.append(s))
     result = _retry(fn)
     assert result == "done"
     assert len(calls) == 3
@@ -251,7 +251,7 @@ def test_retry_waits_suggested_delay_for_per_minute_limit(monkeypatch):
 def test_retry_uses_exponential_backoff_for_non_rate_limit(monkeypatch):
     fn = MagicMock(side_effect=[ValueError("bad"), ValueError("bad"), "ok"])
     slept = []
-    monkeypatch.setattr("debate.shared.llm_provider.time.sleep", lambda s: slept.append(s))
+    monkeypatch.setattr("debate.shared.llm_retry.time.sleep", lambda s: slept.append(s))
     result = _retry(fn)
     assert result == "ok"
     assert slept[0] == pytest.approx(5.0)
@@ -260,6 +260,6 @@ def test_retry_uses_exponential_backoff_for_non_rate_limit(monkeypatch):
 
 def test_retry_re_raises_after_max_retries(monkeypatch):
     fn = MagicMock(side_effect=ConnectionError("network down"))
-    monkeypatch.setattr("debate.shared.llm_provider.time.sleep", lambda s: None)
+    monkeypatch.setattr("debate.shared.llm_retry.time.sleep", lambda s: None)
     with pytest.raises(ConnectionError):
         _retry(fn)

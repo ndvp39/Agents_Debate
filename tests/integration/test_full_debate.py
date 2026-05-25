@@ -22,7 +22,7 @@ def _mock_evaluate(argument: str, citations: list) -> dict:
     return {"logical_consistency": 0.7, "citation_strength": 0.6, "rhetoric_quality": 0.8}
 
 
-def _mock_route(score) -> str:
+def _mock_route(prompt: str) -> str:
     return "Strong argument presented. Please continue with your rebuttal."
 
 

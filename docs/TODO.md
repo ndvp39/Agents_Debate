@@ -1,7 +1,7 @@
 # TODO — Task List
 # AI Agent Debate Orchestration System
-**Version:** 1.00  
-**Date:** 2026-05-23  
+**Version:** 1.02  
+**Date:** 2026-05-25  
 **Author:** Nadav Goldin  
 **Legend:** 🔴 Not Started | 🟡 In Progress | ✅ Done
 
@@ -63,8 +63,8 @@
 
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
-| 3.1 | Write tests for `ipc/schemas.py` | Critical | ✅ Done | Dev | Tests cover all 3 message types, invalid schema rejection |
-| 3.2 | Implement `ipc/schemas.py` (RoutingMessage, ReprimandMessage, VerdictMessage) | Critical | ✅ Done | Dev | Tests pass; dataclasses with validation; ≤150 lines |
+| 3.1 | Write tests for `ipc/schemas.py` | Critical | ✅ Done | Dev | Tests cover all 4 message types, invalid schema rejection |
+| 3.2 | Implement `ipc/schemas.py` + `ipc/messages.py` (RoutingMessage, ReprimandMessage, VerdictMessage, ArgumentMessage) | Critical | ✅ Done | Dev | Tests pass; dataclasses with validation; `ArgumentMessage` split to `messages.py` for ≤150 line compliance; re-exported from `schemas.py` |
 | 3.3 | Write tests for `ipc/channel.py` | Critical | ✅ Done | Dev | Tests cover send, receive, malformed JSON handling |
 | 3.4 | Implement `ipc/channel.py` (IPCChannel) | Critical | ✅ Done | Dev | Tests pass; JSON serialization/deserialization; ≤150 lines |
 
@@ -85,8 +85,8 @@
 
 | # | Task | Priority | Status | Owner | Definition of Done |
 |---|------|----------|--------|-------|--------------------|
-| 5.1 | Write tests for `agents/judge/skills.py` | Critical | ✅ Done | Dev | Tests cover all 4 skills; reprimand trigger; score update; verdict output |
-| 5.2 | Implement `agents/judge/skills.py` | Critical | ✅ Done | Dev | Tests pass; skills defined locally; ≤150 lines |
+| 5.1 | Write tests for `agents/judge/skills.py` + `verdict.py` | Critical | ✅ Done | Dev | Tests cover all 4 skills; reprimand trigger; score update; verdict output |
+| 5.2 | Implement `agents/judge/skills.py` + `agents/judge/verdict.py` | Critical | ✅ Done | Dev | Tests pass; skills defined locally; split: `skills.py` (EnforceDebateMechanics, EvaluatePersuasionScore, RouteTurn ≤129 lines) + `verdict.py` (PersuasionScore, DeclareVerdict ≤150 lines) |
 | 5.3 | Write tests for `agents/judge/judge_agent.py` | Critical | ✅ Done | Dev | Tests cover no-internet enforcement, scoring rounds, verdict (no ties) |
 | 5.4 | Implement `agents/judge/judge_agent.py` (JudgeAgent) | Critical | ✅ Done | Dev | Tests pass; inherits BaseAgent; ≤150 lines |
 
@@ -155,6 +155,21 @@
 
 ---
 
+## Phase 11 — Final Polish & New Features
+
+| # | Task | Priority | Status | Owner | Definition of Done |
+|---|------|----------|--------|-------|--------------------|
+| 11.1 | **Refine Judge: Stateless & Dynamic Evaluation** — Add zero-anchoring (scores shift immediately when a devastating counter lands), refutation/novelty check (penalize argument repetition, reward new dimensions), and strict feedback enforcement (compare current arg against previous turn's exact feedback; deduct for ignore, boost for compliance). Update `EvaluatePersuasionScore` prompt and `RouteTurn` prompt in `llm_provider.py` and `skills.py`. | Critical | ✅ Done | Dev | Evaluate LLM prompt updated with ZERO-ANCHORING, NOVELTY, FEEDBACK rules; `EvaluatePersuasionScore` injects 3 context blocks (feedback enforcement, novelty check, refutation check); `RouteTurn` builds full scored prompt passed to `(prompt:str)->str` route LLM; `judge_agent.py` passes prev own arg + opponent arg; 248 tests pass |
+| 11.2 | **Refine Judge: Detailed Final Verdict** — Rewrite `DeclareVerdict` justification format. Replace current 6-para structure with the required four named sections: **Key Clashes** (most pivotal argument exchanges), **Feedback Adherence** (per-agent compliance with judge instructions), **Scoring Breakdown** (Logic / Rhetoric / Citations with per-agent averages), **Final Conclusion** (decisive factor + winner declaration). | Critical | ✅ Done | Dev | `_build_verdict_justification` rewritten with KEY CLASHES (best/worst round analysis), FEEDBACK ADHERENCE (per-agent early→late trend with numeric values), SCORING BREAKDOWN (aligned table), FINAL CONCLUSION (primary dimension + weighted formula); 1600+ char output; 248 tests pass |
+| 11.3 | **Fix/Verify Orphan Process Prevention** — Audit `sdk.py` and `orchestrator.py`. Ensure a `try…finally` block (or equivalent) that terminates all three subprocesses (Pro, Con, Judge) on normal exit AND on crash/exception. Verify no zombie processes are left after a `KeyboardInterrupt` or `IPCTimeoutError`. | Critical | ✅ Done | Dev | Moved `_register_watchdog` inside `try` block; replaced `_shutdown` with 3-phase cleanup (stdin.close → terminate → wait(3s)/kill fallback); added outer `except` guard in `sdk.start_debate` to handle partial factory failures; 248 tests pass |
+| 11.4 | **Prompt & Skill Logging** — Create/update `logs/prompts_snapshot.md` with all system prompts, agent skills, and judge routing instructions in their final form. | High | ✅ Done | Dev | `logs/prompts_snapshot.md` exists; all 4 judge skill prompts + 7 debater skill prompts + routing instructions documented |
+| 11.5 | **Debate Execution — Clean 10-Round Run** — Run a full, fresh 10-round live debate (Gemini API). Monitor for token-limit crashes (empty output seen in a previous round 9). Capture complete clean transcript; save to `results/`. | Critical | 🔴 Not Started | Dev | Clean 10-round transcript in `results/`; no empty-output rounds; no crashes; debate_viewer.html generated (see 11.6) |
+| 11.6 | **Static HTML Debate Viewer** — Add a feature to the Orchestrator or SDK to auto-generate `debate_viewer.html` at the end of every run. Requirements: standalone file (no server), embedded CSS, distinct chat bubbles for Pro/Con, highlighted panel for Judge feedback/verdict, visual score bars. Anyone can open it in a browser without running Python. | High | 🔴 Not Started | Dev | `debate_viewer.html` generated after 11.5 run; opens in browser; Pro/Con bubbles distinct; judge panel highlighted; scores visible |
+| 11.7 | **Comprehensive Documentation & Project Update** — Update `docs/PLAN.md`, `docs/PRD.md`, `docs/PRD_judge_agent.md`, `docs/PROMPTS_BOOK.md` to reflect new judge behavior (11.1/11.2), HTML viewer (11.6), and orphan-fix (11.3). Update `README.md` with mention of `debate_viewer.html` and refresh transcript if needed. Update Jupyter notebook graphs with any new run data. | High | 🟡 In Progress | Dev | All PRDs/PLAN/PROMPTS_BOOK updated ✅; README and notebook deferred until 11.5/11.6 complete |
+| 11.8 | **Code Restructuring — ≤150 Line Compliance** — Audit all `src/` files against PRD §6 requirement. Split oversized files: `skills.py`→`verdict.py`, `llm_provider.py`→`llm_anthropic.py`+`llm_gemini.py`+`llm_retry.py`, `schemas.py`→`messages.py`. Update all imports and test patches. Re-verify 248 tests pass at ≥85% coverage. | Critical | ✅ Done | Dev | All 37 `src/` files ≤150 lines; 248 tests pass at 93.86% coverage; 0 ruff violations |
+
+---
+
 ## Summary
 
 | Phase | Tasks | Done |
@@ -170,4 +185,5 @@
 | 8 — SDK + CLI | 3 | 3 ✅ |
 | 9 — Quality gates | 6 | 6 ✅ |
 | 10 — Deliverables | 7 | 7 ✅ |
-| **Total** | **71** | **71** |
+| 11 — Final Polish & New Features | 8 | 6 🟡 |
+| **Total** | **79** | **77** |

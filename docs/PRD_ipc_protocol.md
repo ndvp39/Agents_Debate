@@ -16,7 +16,7 @@ JSON was chosen because:
 - It is token-efficient (no XML overhead).
 - It allows the orchestrator to inspect and validate every message before routing.
 
-Each message has a `message_type` field that the orchestrator uses to dispatch the correct handler. There are exactly **3 message types**: `routing`, `reprimand`, and `verdict`.
+Each message has a `message_type` field that the orchestrator uses to dispatch the correct handler. There are exactly **4 message types**: `routing`, `reprimand`, `verdict`, and `argument`.
 
 ---
 
@@ -75,7 +75,7 @@ Sent at the final round after `Declare_Verdict` is executed.
     "Agent_Pro": 72,
     "Agent_Con": 85
   },
-  "justification": "Agent_Con consistently provided peer-reviewed citations and directly rebutted every claim. Agent_Pro relied on anecdotal evidence in 6 of 10 rounds."
+  "justification": "KEY CLASHES — Round 3 was the most decisive exchange: Agent_Con scored 0.71 versus Agent_Pro's 0.54 (margin: +0.17)...\n\nFEEDBACK ADHERENCE — ...\n\nSCORING BREAKDOWN — ...\n\nFINAL CONCLUSION — Agent_Con wins with 71% vs 54%..."
 }
 ```
 

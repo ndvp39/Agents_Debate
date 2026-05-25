@@ -1,6 +1,6 @@
 # PRD — Debate Orchestrator
-**Version:** 1.00  
-**Date:** 2026-05-23  
+**Version:** 1.01  
+**Date:** 2026-05-25  
 **Author:** Nadav Goldin  
 **File:** `src/debate/services/orchestrator.py`
 
@@ -98,6 +98,8 @@ The orchestrator also serves as the integration point for the Watchdog — it re
 - All subprocess handles MUST be registered with the Watchdog before the loop starts.
 - On Watchdog-triggered restart, the orchestrator MUST re-send the last message to the restarted agent.
 - The orchestrator MUST shut down all processes even if an exception is raised (use `try/finally`).
+- Shutdown MUST use three-phase cleanup: (1) close each process's stdin to unblock pipe reads, (2) send SIGTERM via `terminate()`, (3) wait up to 3 seconds; if the process lingers, escalate to `kill()` + `wait()`. All failures are suppressed so every process is attempted.
+- The SDK `start_debate()` MUST guard against orphan processes between factory completion and orchestrator entry — if an exception occurs before the orchestrator's own try block, the SDK kills all spawned processes.
 
 ---
 

@@ -1,7 +1,7 @@
 # PLAN — Architecture & Design Document
 # AI Agent Debate Orchestration System
-**Version:** 1.00  
-**Date:** 2026-05-23  
+**Version:** 1.02  
+**Date:** 2026-05-25  
 **Author:** Nadav Goldin
 
 ---
@@ -75,6 +75,8 @@
 
 ### 1.3 Level 3 — Component Diagram (src package)
 
+Every source file is ≤ 150 lines (PRD §6 non-functional requirement). Larger logical units are split into same-package modules.
+
 ```
 src/
 ├── main.py                     ← CLI entry point (delegates to SDK only)
@@ -84,19 +86,19 @@ src/
 │
 └── debate/
     ├── sdk/
-    │   ├── sdk.py              ← DebateSDK (single public entry point)
+    │   ├── sdk.py              ← DebateSDK (single public entry point; orphan-guard)
     │   └── factory.py          ← subprocess_factory (spawns three agent processes)
     │
     ├── services/
-    │   └── orchestrator.py     ← DebateOrchestrator (debate loop, round mgmt)
+    │   └── orchestrator.py     ← DebateOrchestrator (debate loop, 3-phase shutdown)
     │
     ├── agents/
     │   ├── base_agent.py       ← BaseAgent (process lifecycle, IPC, skill registry)
     │   ├── watchdog.py         ← Watchdog (timeout, kill, restart)
     │   ├── judge/
-    │   │   ├── judge_agent.py  ← JudgeAgent(BaseAgent) (no internet, scoring)
-    │   │   └── skills.py       ← EnforceDebateMechanics, RouteTurn,
-    │   │                            EvaluatePersuasionScore, DeclareVerdict
+    │   │   ├── judge_agent.py  ← JudgeAgent(BaseAgent) (no internet; injects 3 context blocks)
+    │   │   ├── skills.py       ← EnforceDebateMechanics, EvaluatePersuasionScore, RouteTurn
+    │   │   └── verdict.py      ← PersuasionScore, DeclareVerdict, _build_verdict_justification
     │   └── debaters/
     │       ├── base_debater.py ← BaseDebater(BaseAgent) (anti-sycophancy, skill pipeline)
     │       ├── pro_agent.py    ← ProAgent(BaseDebater)
@@ -107,12 +109,17 @@ src/
     │                                SynthesizeEvidence, ApplyRhetoric
     │
     ├── ipc/
-    │   ├── schemas.py          ← RoutingMessage, ReprimandMessage, VerdictMessage, ArgumentMessage
+    │   ├── schemas.py          ← RoutingMessage, ReprimandMessage, VerdictMessage
+    │   │                           (re-exports ArgumentMessage from messages.py)
+    │   ├── messages.py         ← ArgumentMessage (split for ≤150 line compliance)
     │   └── channel.py          ← IPCChannel (send/receive JSON over pipes, 120 s timeout)
     │
     └── shared/
         ├── config.py           ← ConfigManager (loads + validates versioned JSON)
-        ├── llm_provider.py     ← LLM factory (Anthropic or Gemini via LLM_PROVIDER env var)
+        ├── llm_provider.py     ← LLM factory API (Anthropic or Gemini; re-exports helpers)
+        ├── llm_anthropic.py    ← Anthropic Claude implementations (text/evaluate/route)
+        ├── llm_gemini.py       ← Google Gemini implementations (text/evaluate/route)
+        ├── llm_retry.py        ← Shared retry logic, _extract_json, rate-limit helpers
         ├── gatekeeper.py       ← ApiGatekeeper (rate limits, queue, retry, logging)
         ├── logger.py           ← DebateLogger (FIFO rotation, structured output)
         ├── version.py          ← VERSION = "1.00"
@@ -124,15 +131,15 @@ src/
 ```
 BaseAgent
   ├── JudgeAgent
-  │     └── uses: EnforceDebateMechanics, RouteTurn,
-  │                EvaluatePersuasionScore, DeclareVerdict
+  │     ├── skills: EnforceDebateMechanics, EvaluatePersuasionScore, RouteTurn  [skills.py]
+  │     └── skills: DeclareVerdict  [verdict.py]
   └── BaseDebater
         ├── ProAgent
         └── ConAgent
               └── uses: WebSearchTool
 
-DebateSDK
-  └── uses: DebateOrchestrator
+DebateSDK  (orphan-guard wraps factory + orchestrator)
+  └── uses: DebateOrchestrator  (3-phase shutdown)
               ├── manages: JudgeAgent, ProAgent, ConAgent
               ├── uses: IPCChannel
               └── uses: Watchdog
@@ -261,7 +268,7 @@ User      CLI       SDK       Orchestrator   Pro      Judge    Con
 
 ### ADR-006: Multi-provider LLM support via injected factory
 
-**Decision:** `debate.shared.llm_provider` provides `make_debater_llm()`, `make_judge_evaluate_llm()`, and `make_judge_route_llm()` factory functions. The active provider is resolved from the `LLM_PROVIDER` environment variable (overrides) or `config/setup.json → provider.active`. Default is **Google Gemini** (free API key).
+**Decision:** `debate.shared.llm_provider` provides `make_debater_llm()`, `make_judge_evaluate_llm()`, and `make_judge_route_llm()` factory functions. The active provider is resolved from the `LLM_PROVIDER` environment variable (overrides) or `config/setup.json → provider.active`. Default is **Google Gemini** (`gemini-3.1-flash-lite`; free API key via aistudio.google.com). Anthropic Claude (`claude-sonnet-4-6`) is the alternate provider.
 
 **Rationale:** Decouples the agent logic from any specific SDK. Runners inject callables at startup; agents never import `anthropic` or `google.genai` directly. Switching provider requires only a one-line `.env` change.
 
@@ -270,6 +277,21 @@ User      CLI       SDK       Orchestrator   Pro      Judge    Con
 - Strategy class hierarchy: More boilerplate than simple factory functions for this scope.
 
 **Trade-off:** Both provider SDKs are installed (`anthropic`, `google-genai`), adding ~50 MB to the venv even if only one is used.
+
+---
+
+### ADR-007: Module splitting to satisfy ≤150 line limit
+
+**Decision:** When a logical unit grows past 150 lines it is split into co-located sub-modules in the same package. The original module re-exports the new module's public symbols so all existing imports continue to work.
+
+**Examples:**
+- `agents/judge/skills.py` (358 lines) → `skills.py` (129) + `verdict.py` (150): `PersuasionScore` and `DeclareVerdict` extracted; `verdict.py` is standalone; `skills.py` imports `PersuasionScore` from it.
+- `shared/llm_provider.py` (259 lines) → `llm_provider.py` (79, public API) + `llm_anthropic.py` (62) + `llm_gemini.py` (69) + `llm_retry.py` (63).
+- `ipc/schemas.py` (184 lines) → `schemas.py` (144, re-exports `ArgumentMessage`) + `messages.py` (47).
+
+**Rationale:** PRD §6 requires ≤150 lines per file. Splitting by logical sub-unit (scoring/verdict, provider-impl, message-type) keeps cohesion high and avoids circular imports.
+
+**Trade-off:** More files to navigate; mitigated by the re-export pattern which keeps public import paths stable.
 
 ---
 
@@ -307,7 +329,16 @@ class ApiGatekeeper:
 
 ### 5.4 IPC Message Schemas
 
-See `docs/PRD.md` Section 5.3 for the three JSON schemas (routing, reprimand, verdict).
+Four message types are defined in `src/debate/ipc/schemas.py`:
+
+| Type | Direction | Purpose |
+|------|-----------|---------|
+| `argument` | Debater → Judge | Round submission with mandatory citations |
+| `routing` | Judge → next Debater | Valid argument accepted; turn advanced |
+| `reprimand` | Judge → same Debater | Argument rejected; same agent must rewrite |
+| `verdict` | Judge → Orchestrator | Final result after all rounds complete |
+
+See `docs/PRD.md` Section 5.3 and `docs/PRD_ipc_protocol.md` for full JSON schemas.
 
 ---
 
@@ -325,7 +356,7 @@ class DebateResult:
     reprimand_count: int
 ```
 
-### PersuasionScore (internal Judge state)
+### PersuasionScore (internal Judge state — defined in `verdict.py`)
 ```python
 @dataclass
 class PersuasionScore:
@@ -334,7 +365,10 @@ class PersuasionScore:
     logical_consistency: float   # 0.0 – 1.0  (weight: 0.5)
     citation_strength: float     # 0.0 – 1.0  (weight: 0.3)
     rhetoric_quality: float      # 0.0 – 1.0  (weight: 0.2)
-    cumulative_score: float      # 0.5*logic + 0.3*citation + 0.2*rhetoric
+
+    @property
+    def weighted(self) -> float:  # 0.5*logic + 0.3*citation + 0.2*rhetoric
+        ...
 ```
 
 ---

@@ -1,6 +1,6 @@
 # PRD — AI Agent Debate Orchestration System
-**Version:** 1.00  
-**Date:** 2026-05-23  
+**Version:** 1.02  
+**Date:** 2026-05-25  
 **Course:** AI Agents MSC — Exercise 02  
 **Author:** Nadav Goldin
 
@@ -38,7 +38,7 @@ Large Language Models (LLMs) exhibit sycophantic behavior — they tend to agree
 |------|----------------------|
 | Fully autonomous execution | Running `main.py` starts and completes the entire debate without any manual input |
 | Anti-sycophancy enforcement | Judge reprimands any debater that agrees with the opponent; reprimand count tracked in logs |
-| Definitive winner declared | Final verdict JSON includes winner, two scores (no ties), and detailed justification |
+| Definitive winner declared | Final verdict JSON includes winner, two scores (no ties), and comprehensive four-section justification: KEY CLASHES, FEEDBACK ADHERENCE, SCORING BREAKDOWN, FINAL CONCLUSION |
 | Structured IPC | All inter-agent messages parse as valid JSON matching defined schemas |
 | Resilience | No agent hang causes a system crash; Watchdog restarts failed processes automatically |
 | Cost control | Gatekeeper enforces token/rate limits; no API call bypasses it |
@@ -63,15 +63,15 @@ Large Language Models (LLMs) exhibit sycophantic behavior — they tend to agree
 - At the final round, executes `Declare_Verdict`:
   - Declares a definitive winner (ties are **forbidden**).
   - Assigns a score/percentage to each agent (e.g., 85% vs 72%).
-  - Provides detailed justification based on persuasiveness and rhetorical skill, **not** objective factual truth.
+  - Provides a **comprehensive, four-section justification** containing: **KEY CLASHES** (round-level pairwise score analysis), **FEEDBACK ADHERENCE** (early-vs-late score trend per agent), **SCORING BREAKDOWN** (aligned table of logic/citation/rhetoric averages and final percentages), and **FINAL CONCLUSION** (winner, primary winning dimension, weighted formula explanation) — all grounded in per-round `PersuasionScore` data. Verdict is based on **persuasiveness and rhetorical skill**, not objective factual truth.
 
-**Judge Skills:**
+**Judge Skills** (`skills.py` + `verdict.py`):
 | Skill | Description |
 |-------|-------------|
-| `Enforce_Debate_Mechanics` | Evaluates incoming message; checks direct rebuttal, citation presence, no agreement. Bounces back with reprimand if failed. |
-| `Route_Turn` | Summarizes core point just made, defines the next target agent, sends routing JSON. |
-| `Evaluate_Persuasion_Score` | Internal metric updated round-by-round: logical consistency + citation strength. |
-| `Declare_Verdict` | Final-round output: winner, scores, justification. |
+| `EnforceDebateMechanics` | Rule-based check: citation presence, no sycophantic phrases, fallacy acknowledgement (round 2+). Issues reprimand if failed; no LLM call. |
+| `EvaluatePersuasionScore` | Scores logic/citation/rhetoric (0–1) via evaluate LLM with ZERO-ANCHORING. Prepends up to 3 context blocks: FEEDBACK ENFORCEMENT, NOVELTY CHECK, REFUTATION CHECK. |
+| `RouteTurn` | Builds full scored prompt; calls route LLM for 2–3 sentences of feedback (weakest dim + repetition call-out + mandatory next-round instruction); sends routing message with previous-feedback reminder. |
+| `DeclareVerdict` | Deterministic cumulative scoring; citation-strength tie-break; four-section justification (KEY CLASHES / FEEDBACK ADHERENCE / SCORING BREAKDOWN / FINAL CONCLUSION); no LLM call. |
 
 #### Agent 2 — Pro Debater
 - Assigned stance: completely **FOR** the debate topic.
@@ -171,7 +171,7 @@ All inter-process communication is strict JSON.
 | Secrets | No API keys in source; use `.env` file; `.env-example` committed |
 | Code quality | Ruff linter, zero violations |
 | Testing | TDD (Red-Green-Refactor), ≥ 85% coverage |
-| File size | Every code file ≤ 150 lines of code |
+| File size | Every code file ≤ 150 lines of code; oversized logical units are split into co-located sub-modules within the same package, with the original module re-exporting public symbols |
 | Skills scope | Agent skills defined locally within the project, not globally |
 | Version tracking | Initial version `1.00` in `version.py` and all JSON configs |
 
