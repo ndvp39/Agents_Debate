@@ -790,6 +790,6 @@ Live run — **2026-05-26** | topic: **"Will artificial intelligence replace hum
 ## License & Credits
 
 **Author:** Nadav Goldin  
-MSC Exercise 02 — Dr. Yoram Segal.  
+Agents Debate — Exercise 02 · AI Agents MSC — Dr. Yoram Segal.  
 Built with [Claude Code](https://claude.ai/claude-code) and the
 [Anthropic API](https://docs.anthropic.com).
