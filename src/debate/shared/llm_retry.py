@@ -7,6 +7,8 @@ import time
 _MAX_RETRIES = 4
 _RETRY_BASE_DELAY = 5.0
 _DAILY_QUOTA_MARKERS = ("PerDay", "per_day", "daily")
+_EMPTY_MAX_RETRIES = 3
+_EMPTY_RETRY_DELAY = 2.0
 
 
 def _extract_json(text: str) -> dict:
@@ -44,10 +46,12 @@ def _suggested_delay(exc: Exception) -> float | None:
 
 def _retry(fn):
     """Smart retry: wait provider-suggested delay for transient limits;
-    raise immediately for daily quota exhaustion."""
+    raise immediately for daily quota exhaustion;
+    retry up to _EMPTY_MAX_RETRIES times on empty/None responses."""
+    empty_count = 0
     for attempt in range(_MAX_RETRIES + 1):
         try:
-            return fn()
+            result = fn()
         except Exception as exc:
             if _is_rate_limit(exc):
                 if _is_daily_quota(exc):
@@ -61,3 +65,11 @@ def _retry(fn):
             if attempt == _MAX_RETRIES:
                 raise
             time.sleep(_RETRY_BASE_DELAY * (2 ** attempt))
+        else:
+            if result is None or (isinstance(result, str) and not result.strip()):
+                empty_count += 1
+                if empty_count <= _EMPTY_MAX_RETRIES:
+                    time.sleep(_EMPTY_RETRY_DELAY)
+                    continue
+                raise ValueError(f"LLM returned empty response after {_EMPTY_MAX_RETRIES} retries")
+            return result

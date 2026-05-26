@@ -1,6 +1,6 @@
 # PRD — IPC Protocol
-**Version:** 1.00  
-**Date:** 2026-05-23  
+**Version:** 1.01  
+**Date:** 2026-05-26  
 **Author:** Nadav Goldin  
 **Files:** `src/debate/ipc/schemas.py`, `src/debate/ipc/channel.py`
 
@@ -151,6 +151,15 @@ class IPCChannel:
 - Ties in the verdict scores are rejected at the schema validation layer (`IPCSchemaError`).
 - `citations` in an `argument` message must be non-empty; the Judge's `Enforce_Debate_Mechanics` skill also checks this, but schema validation is the first line of defense.
 - No binary data; all content is UTF-8 encoded text.
+
+### 5.1 LLM Empty-Response Retry
+
+Agent subprocesses produce their argument text by calling the LLM provider. If the provider returns `None` or an empty/whitespace-only string (can occur under token limits or transient API issues), the system retries the call automatically:
+
+- **Location:** `shared/llm_retry.py` — `_retry()` function, `try…else` branch.
+- **Behaviour:** After a successful API call that yields an empty result, sleep `_EMPTY_RETRY_DELAY = 2.0 s` and retry. Maximum `_EMPTY_MAX_RETRIES = 3` retries (4 total attempts). If all 3 retries are empty, raises `ValueError("LLM returned empty response after 3 retries")`.
+- **Scope:** Covers all three LLM callable types — debater text, judge evaluate, judge route, and judge verdict — because all use `_retry()`.
+- **Independent of rate-limit retry:** Rate-limit retries (HTTP 429) use a separate counter (`_MAX_RETRIES = 4`) and provider-suggested delay. Empty-response retries are orthogonal.
 
 ---
 

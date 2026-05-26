@@ -1,6 +1,6 @@
 # PRD — Judge Agent
-**Version:** 1.02  
-**Date:** 2026-05-25  
+**Version:** 1.03  
+**Date:** 2026-05-26  
 **Author:** Nadav Goldin  
 **Files:** `src/debate/agents/judge/judge_agent.py`, `src/debate/agents/judge/skills.py`, `src/debate/agents/judge/verdict.py`
 
@@ -103,14 +103,18 @@ cumulative_score = 0.5 × avg(logical_consistency)
 1. Compute final cumulative weighted scores for both agents (`0.5×logic + 0.3×citation + 0.2×rhetoric`).
 2. If scores are equal (tie scenario): add a 0.01 tie-breaker to the agent with higher average citation strength across rounds.
 3. Identify the winner (higher cumulative score).
-4. Construct a **comprehensive, multi-paragraph verdict justification** consisting of exactly four named sections:
-   - **KEY CLASHES** — identifies the most and least decisive rounds by pairwise score margin; summarises winner's overall argument quality advantage.
-   - **FEEDBACK ADHERENCE** — compares early-round vs. late-round weighted averages per agent to assess how responsively each incorporated the Judge's incremental feedback.
-   - **SCORING BREAKDOWN** — aligned table showing per-dimension averages (logic/citation/rhetoric) and final integer percentages for both agents.
-   - **FINAL CONCLUSION** — names the winner, states the final percentage scores, identifies the primary winning dimension (largest per-dimension gap), and explains how the weighted formula made it determinative.
-5. Return a `verdict` JSON message. Ties are forbidden — the tie-breaker guarantees a winner.
+4. Build a structured **score context block** (`_build_verdict_context`) containing: round-by-round per-dimension scores for both agents, dimension averages, and final percentage scores.
+5. Pass the context block to the **verdict LLM** (`_build_verdict_prompt`) which produces a compelling, analytical narrative verdict covering exactly four labelled sections:
+   - **KEY CLASHES** — identifies the 2–3 most pivotal rounds by number; explains what made each decisive (counter-argument quality, citation gap, logic superiority).
+   - **FEEDBACK ADHERENCE** — evaluates how consistently each debater incorporated the Judge's round-by-round instructions, supported by score trend evidence.
+   - **SCORING BREAKDOWN** — interprets the dimension averages, revealing each side's strategic strengths and weaknesses.
+   - **FINAL CONCLUSION** — delivers a decisive verdict explaining exactly WHY the winner won and what ultimately separated the two debaters.
+6. If no `llm_call` is provided (test/offline mode), the plain context block is used as the justification fallback.
+7. Return a `verdict` JSON message. Ties are forbidden — the tie-breaker guarantees a winner.
 
-**Output:** A `verdict` JSON message. Justification is deterministically constructed from per-round `PersuasionScore` objects — no LLM call required. Source split: `verdict.py` (PersuasionScore, DeclareVerdict, helpers) + `skills.py` (remaining three skills).
+**LLM configuration:** `make_judge_verdict_llm()` factory; 800 max output tokens (higher than route LLM's 200 to allow full narrative). Wired via `JudgeAgent(verdict_llm=...)` and `judge_runner.py`.
+
+**Output:** A `verdict` JSON message with LLM-generated justification prose. Source split: `verdict.py` (PersuasionScore, DeclareVerdict, `_build_verdict_context`, `_build_verdict_prompt`) + `skills.py` (remaining three skills).
 
 ---
 

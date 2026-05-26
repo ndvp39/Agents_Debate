@@ -22,9 +22,13 @@ def _route_llm(prompt: str):
     return "Strong argument with solid citations and clear rhetoric."
 
 
+def _verdict_llm(prompt: str):
+    return "KEY CLASHES — Round 1 was decisive. FEEDBACK ADHERENCE — Pro adapted well. SCORING BREAKDOWN — Logic dominated. FINAL CONCLUSION — Pro wins on logic."
+
+
 def _make_judge(stdout_buf=None):
     buf = stdout_buf if stdout_buf is not None else BytesIO()
-    agent = JudgeAgent(evaluate_llm=_evaluate_llm, route_llm=_route_llm, stdout=buf)
+    agent = JudgeAgent(evaluate_llm=_evaluate_llm, route_llm=_route_llm, verdict_llm=_verdict_llm, stdout=buf)
     return agent, buf
 
 
@@ -159,3 +163,27 @@ def test_declare_verdict_raises_before_any_round():
     agent, _ = _make_judge()
     with pytest.raises(InsufficientDataError):
         agent.declare_verdict()
+
+
+def test_declare_verdict_uses_llm_justification():
+    agent, buf = _make_judge()
+    agent.process_argument(_arg(AgentID.PRO, round_=1))
+    agent.process_argument(_arg(AgentID.CON, round_=1))
+    agent.declare_verdict()
+    buf.seek(0)
+    lines = [ln for ln in buf.read().decode("utf-8").splitlines() if ln.strip()]
+    verdict = json.loads(lines[-1])
+    assert "KEY CLASHES" in verdict["justification"]
+    assert "FINAL CONCLUSION" in verdict["justification"]
+
+
+def test_declare_verdict_without_llm_uses_score_context():
+    buf = BytesIO()
+    agent = JudgeAgent(evaluate_llm=_evaluate_llm, route_llm=_route_llm, verdict_llm=None, stdout=buf)
+    agent.process_argument(_arg(AgentID.PRO, round_=1))
+    agent.process_argument(_arg(AgentID.CON, round_=1))
+    agent.declare_verdict()
+    buf.seek(0)
+    lines = [ln for ln in buf.read().decode("utf-8").splitlines() if ln.strip()]
+    verdict = json.loads(lines[-1])
+    assert "RESULT" in verdict["justification"]

@@ -60,3 +60,16 @@ def make_anthropic_route_llm(model: str):
         ).content[0].text)
 
     return route_llm
+
+
+def make_anthropic_verdict_llm(model: str):
+    import anthropic
+    client = anthropic.Anthropic()
+
+    def verdict_llm(prompt: str) -> str:
+        return _retry(lambda: client.messages.create(
+            model=model, max_tokens=800,
+            messages=[{"role": "user", "content": prompt}],
+        ).content[0].text)
+
+    return verdict_llm

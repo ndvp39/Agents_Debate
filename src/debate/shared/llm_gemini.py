@@ -67,3 +67,16 @@ def make_gemini_route_llm(model: str):
         ).text)
 
     return route_llm
+
+
+def make_gemini_verdict_llm(model: str):
+    from google.genai import types
+    client = _gemini_client()
+    cfg = types.GenerateContentConfig(max_output_tokens=800)
+
+    def verdict_llm(prompt: str) -> str:
+        return _retry(lambda: client.models.generate_content(
+            model=model, contents=prompt, config=cfg,
+        ).text)
+
+    return verdict_llm

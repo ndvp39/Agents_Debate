@@ -12,7 +12,11 @@ from debate.agents.judge.judge_agent import JudgeAgent  # noqa: E402
 from debate.ipc.schemas import ArgumentMessage  # noqa: E402
 from debate.shared.config import ConfigManager  # noqa: E402
 from debate.shared.constants import MessageType  # noqa: E402
-from debate.shared.llm_provider import make_judge_evaluate_llm, make_judge_route_llm  # noqa: E402
+from debate.shared.llm_provider import (  # noqa: E402
+    make_judge_evaluate_llm,
+    make_judge_route_llm,
+    make_judge_verdict_llm,
+)
 
 
 def main() -> None:
@@ -21,6 +25,7 @@ def main() -> None:
     agent = JudgeAgent(
         evaluate_llm=make_judge_evaluate_llm(setup),
         route_llm=make_judge_route_llm(setup),
+        verdict_llm=make_judge_verdict_llm(setup),
     )
     agent.start()
 

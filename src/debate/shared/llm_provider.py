@@ -12,12 +12,14 @@ from debate.shared.llm_anthropic import (
     make_anthropic_evaluate_llm,
     make_anthropic_route_llm,
     make_anthropic_text_llm,
+    make_anthropic_verdict_llm,
 )
 from debate.shared.llm_gemini import (
     _gemini_client,  # noqa: F401  (re-exported for test patching)
     make_gemini_evaluate_llm,
     make_gemini_route_llm,
     make_gemini_text_llm,
+    make_gemini_verdict_llm,
 )
 from debate.shared.llm_retry import (  # noqa: F401  (re-exported for test imports)
     _extract_json,
@@ -69,6 +71,16 @@ def make_judge_route_llm(setup: dict):
     if provider == "gemini":
         return make_gemini_route_llm(model)
     return make_anthropic_route_llm(model)
+
+
+def make_judge_verdict_llm(setup: dict):
+    """Return (prompt: str) -> str callable for the final LLM-generated verdict."""
+    provider = get_active_provider(setup)
+    cfg = _provider_cfg(setup, provider)
+    model = cfg.get("judge_model", _default_model(provider))
+    if provider == "gemini":
+        return make_gemini_verdict_llm(model)
+    return make_anthropic_verdict_llm(model)
 
 
 def _provider_cfg(setup: dict, provider: str) -> dict:

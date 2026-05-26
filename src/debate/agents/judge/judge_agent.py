@@ -25,12 +25,14 @@ class JudgeAgent(BaseAgent):
         self,
         evaluate_llm: Callable,
         route_llm: Callable,
+        verdict_llm: Callable | None = None,
         stdin=None,
         stdout=None,
     ) -> None:
         super().__init__(AgentID.JUDGE, stdin, stdout)
         self._evaluate_llm = evaluate_llm
         self._route_llm = route_llm
+        self._verdict_llm = verdict_llm
 
         self._enforce = EnforceDebateMechanics()
         self._evaluate = EvaluatePersuasionScore()
@@ -91,5 +93,6 @@ class JudgeAgent(BaseAgent):
         verdict = self._verdict.run(
             self._scores[AgentID.PRO],
             self._scores[AgentID.CON],
+            llm_call=self._verdict_llm,
         )
         self.send(verdict.to_dict())

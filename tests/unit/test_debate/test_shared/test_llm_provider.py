@@ -263,3 +263,29 @@ def test_retry_re_raises_after_max_retries(monkeypatch):
     monkeypatch.setattr("debate.shared.llm_retry.time.sleep", lambda s: None)
     with pytest.raises(ConnectionError):
         _retry(fn)
+
+
+def test_retry_retries_on_empty_string_then_succeeds(monkeypatch):
+    fn = MagicMock(side_effect=["", "", "good response"])
+    slept = []
+    monkeypatch.setattr("debate.shared.llm_retry.time.sleep", lambda s: slept.append(s))
+    result = _retry(fn)
+    assert result == "good response"
+    assert fn.call_count == 3
+    assert all(s == pytest.approx(2.0) for s in slept)
+
+
+def test_retry_retries_on_none_response_then_succeeds(monkeypatch):
+    fn = MagicMock(side_effect=[None, "valid"])
+    monkeypatch.setattr("debate.shared.llm_retry.time.sleep", lambda s: None)
+    result = _retry(fn)
+    assert result == "valid"
+    assert fn.call_count == 2
+
+
+def test_retry_raises_after_max_empty_retries(monkeypatch):
+    fn = MagicMock(return_value="")
+    monkeypatch.setattr("debate.shared.llm_retry.time.sleep", lambda s: None)
+    with pytest.raises(ValueError, match="empty response"):
+        _retry(fn)
+    assert fn.call_count == 4  # 1 initial + 3 empty retries

@@ -1,5 +1,6 @@
 """Verdict computation — PersuasionScore dataclass and DeclareVerdict skill."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from debate.ipc.schemas import VerdictMessage
@@ -11,17 +12,6 @@ from debate.shared.constants import (
     AgentID,
 )
 from debate.shared.exceptions import InsufficientDataError
-
-_WT = {
-    "improved": "{w}'s scores rose ({e:.2f}->{l:.2f}), reflecting strong integration of the Judge's directives.",
-    "declined": "{w}'s scores dipped ({e:.2f}->{l:.2f}); nonetheless the early lead secured overall victory.",
-    "held steady": "{w} maintained steady performance ({e:.2f}->{l:.2f}), never deviating from its strongest line.",
-}
-_LT = {
-    "improved": "{l} showed responsiveness ({e:.2f}->{la:.2f}), but adaptation came too late to close the gap.",
-    "declined": "{l}'s performance deteriorated ({e:.2f}->{la:.2f}), showing difficulty incorporating judicial feedback.",
-    "held steady": "{l} performed consistently but uncompetitively ({e:.2f}->{la:.2f}), with insufficient responsiveness.",
-}
 
 
 @dataclass
@@ -41,86 +31,61 @@ class PersuasionScore:
                 + SCORE_WEIGHT_RHETORIC * self.rhetoric_quality)
 
 
-def _trend(early: float, late: float) -> str:
-    if late > early + 0.02:
-        return "improved"
-    if late < early - 0.02:
-        return "declined"
-    return "held steady"
-
-
-def _build_verdict_justification(
-    winner: str, loser: str, w_scores: list, l_scores: list, winner_pct: int, loser_pct: int,
+def _build_verdict_context(
+    winner: str, loser: str,
+    w_scores: list, l_scores: list,
+    winner_pct: int, loser_pct: int,
 ) -> str:
+    """Format round-by-round score data into a structured text block."""
     rounds = max(len(w_scores), len(l_scores))
     _avg = lambda s, a: sum(getattr(x, a) for x in s) / len(s)  # noqa: E731
-    wl = _avg(w_scores, "logical_consistency")
-    wc = _avg(w_scores, "citation_strength")
-    wr = _avg(w_scores, "rhetoric_quality")
-    ll = _avg(l_scores, "logical_consistency")
-    lc = _avg(l_scores, "citation_strength")
-    lr = _avg(l_scores, "rhetoric_quality")
+    wl, wc, wr = _avg(w_scores, "logical_consistency"), _avg(w_scores, "citation_strength"), _avg(w_scores, "rhetoric_quality")
+    ll, lc, lr = _avg(l_scores, "logical_consistency"), _avg(l_scores, "citation_strength"), _avg(l_scores, "rhetoric_quality")
 
-    paired = list(zip(w_scores, l_scores, strict=False))
-    if paired:
-        best = max(paired, key=lambda p: p[0].weighted - p[1].weighted)
-        worst = min(paired, key=lambda p: p[0].weighted - p[1].weighted)
-        margin = best[0].weighted - best[1].weighted
-        clash = (f"Round {best[0].round} was the most decisive exchange: {winner} scored "
-                 f"{best[0].weighted:.2f} versus {loser}'s {best[1].weighted:.2f} (margin: {margin:+.2f}). ")
-        if len(paired) > 1 and worst[0].round != best[0].round:
-            wm = worst[0].weighted - worst[1].weighted
-            clash += (
-                f"Even {winner}'s narrowest margin (round {worst[0].round}: "
-                f"{worst[0].weighted:.2f} vs {worst[1].weighted:.2f}) confirmed consistent superiority."
-                if wm > 0 else
-                f"{loser}'s strongest counter (round {worst[0].round}: "
-                f"{worst[1].weighted:.2f} vs {worst[0].weighted:.2f}) could not overturn the scoring deficit."
-            )
-    else:
-        clash = f"{winner} held a consistent advantage across all {rounds} round(s)."
+    rows = [f"RESULT: {winner} {winner_pct}% vs {loser} {loser_pct}% over {rounds} rounds\n"]
+    rows.append("ROUND-BY-ROUND (logic / citation / rhetoric [weighted]):")
+    for ws, ls in zip(w_scores, l_scores, strict=False):
+        rows.append(
+            f"  R{ws.round}: {winner} {ws.logical_consistency:.2f}/{ws.citation_strength:.2f}/"
+            f"{ws.rhetoric_quality:.2f} [{ws.weighted:.2f}]"
+            f" | {loser} {ls.logical_consistency:.2f}/{ls.citation_strength:.2f}/"
+            f"{ls.rhetoric_quality:.2f} [{ls.weighted:.2f}]"
+        )
+    rows.append("\nDIMENSION AVERAGES (Logic×0.50 + Citation×0.30 + Rhetoric×0.20):")
+    rows.append(f"  Logical Consistency : {winner} {wl:.2f}  |  {loser} {ll:.2f}")
+    rows.append(f"  Citation Strength   : {winner} {wc:.2f}  |  {loser} {lc:.2f}")
+    rows.append(f"  Rhetoric Quality    : {winner} {wr:.2f}  |  {loser} {lr:.2f}")
+    return "\n".join(rows)
 
-    mid = max(1, len(w_scores) // 2)
-    w_late = w_scores[mid:] or w_scores
-    l_late = l_scores[mid:] or l_scores
-    we = sum(s.weighted for s in w_scores[:mid]) / mid
-    wla = sum(s.weighted for s in w_late) / len(w_late)
-    le = sum(s.weighted for s in l_scores[:mid]) / mid
-    lla = sum(s.weighted for s in l_late) / len(l_late)
-    w_fb = _WT[_trend(we, wla)].format(w=winner, e=we, l=wla)
-    l_fb = _LT[_trend(le, lla)].format(l=loser, e=le, la=lla)
-    primary = max(
-        [("logical consistency (weight 0.50)", wl - ll),
-         ("citation strength (weight 0.30)", wc - lc),
-         ("rhetoric quality (weight 0.20)", wr - lr)],
-        key=lambda x: x[1],
-    )[0]
 
-    return "\n\n".join([
-        (f"KEY CLASHES — {clash} Across all {rounds} round(s), {winner} consistently "
-         f"delivered arguments with greater causal precision, stronger evidential grounding, "
-         f"and more effective rhetorical execution than {loser}."),
-        f"FEEDBACK ADHERENCE — {w_fb} {l_fb}",
-        (f"SCORING BREAKDOWN —\n"
-         f"  Logical Consistency (weight 0.50):  {winner} {wl:.2f}  |  {loser} {ll:.2f}\n"
-         f"  Citation Strength   (weight 0.30):  {winner} {wc:.2f}  |  {loser} {lc:.2f}\n"
-         f"  Rhetoric Quality    (weight 0.20):  {winner} {wr:.2f}  |  {loser} {lr:.2f}\n"
-         f"  Final Score:                        {winner} {winner_pct}%  |  {loser} {loser_pct}%"),
-        (f"FINAL CONCLUSION — {winner} wins this debate with a final score of "
-         f"{winner_pct}% versus {loser_pct}% for {loser} across {rounds} round(s). "
-         f"The verdict rests primarily on superior {primary}, where {winner} held a "
-         f"clear and sustained advantage. Under the cumulative weighted formula "
-         f"(logic=0.50, citation=0.30, rhetoric=0.20), this dimension proved "
-         f"determinative. The outcome reflects {winner}'s superior ability to construct, "
-         f"sustain, and deliver a persuasive case — consistently outperforming {loser} "
-         f"on the dimensions that matter most in structured intellectual discourse."),
-    ])
+def _build_verdict_prompt(context: str, winner: str, loser: str) -> str:
+    """Wrap the score context in instructions for the LLM judge."""
+    return (
+        "You are a senior debate judge delivering a final verdict. "
+        "Write an authoritative, analytical verdict based on the scoring data below.\n\n"
+        f"{context}\n\n"
+        "Write EXACTLY these four labelled sections — no other text:\n"
+        "KEY CLASHES — identify the 2-3 most pivotal rounds; name them by number and explain "
+        "what made each decisive (a devastating counter, a citation gap, superior logic).\n"
+        "FEEDBACK ADHERENCE — which debater adapted better to round-by-round instructions "
+        "and what evidence in the scores supports this.\n"
+        "SCORING BREAKDOWN — interpret the dimension averages; what do they reveal about "
+        "each side's strategic strengths and weaknesses.\n"
+        f"FINAL CONCLUSION — deliver a decisive verdict explaining WHY {winner} won and "
+        f"what ultimately separated {winner} from {loser}.\n\n"
+        "Be specific and analytical. Reference round numbers and scores."
+    )
 
 
 class DeclareVerdict:
-    """Compute final cumulative scores and produce a comprehensive verdict message (no ties)."""
+    """Compute final cumulative scores and produce a comprehensive verdict (no ties)."""
 
-    def run(self, scores_pro: list[PersuasionScore], scores_con: list[PersuasionScore]) -> VerdictMessage:
+    def run(
+        self,
+        scores_pro: list[PersuasionScore],
+        scores_con: list[PersuasionScore],
+        llm_call: Callable | None = None,
+    ) -> VerdictMessage:
         if not scores_pro or not scores_con:
             raise InsufficientDataError("No scores recorded — cannot declare verdict.")
         pro_avg = sum(s.weighted for s in scores_pro) / len(scores_pro)
@@ -145,9 +110,16 @@ class DeclareVerdict:
         loser_pct = con_pct if winner == AgentID.PRO else pro_pct
         w_scores = scores_pro if winner == AgentID.PRO else scores_con
         l_scores = scores_con if winner == AgentID.PRO else scores_pro
-        justification = _build_verdict_justification(winner, loser, w_scores, l_scores, winner_pct, loser_pct)
+
+        context = _build_verdict_context(winner, loser, w_scores, l_scores, winner_pct, loser_pct)
+        if llm_call is not None:
+            justification = llm_call(_build_verdict_prompt(context, winner, loser))
+        else:
+            justification = context
         if len(justification) < MIN_JUSTIFICATION_LENGTH:
             justification += " " * (MIN_JUSTIFICATION_LENGTH - len(justification))
         return VerdictMessage(
-            winner=winner, scores={AgentID.PRO: pro_pct, AgentID.CON: con_pct}, justification=justification,
+            winner=winner,
+            scores={AgentID.PRO: pro_pct, AgentID.CON: con_pct},
+            justification=justification,
         )
