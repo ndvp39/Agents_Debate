@@ -57,6 +57,8 @@ uv run python src/main.py
 ```bash
 uv run python run_once.py
 ```
+> Default topic: **"Will artificial intelligence replace human jobs"** · 10 rounds  
+> Edit `TOPIC` and `ROUNDS` on lines 17–18 of `run_once.py` to change them.
 
 Each agent runs in its own subprocess communicating via JSON-lines stdin/stdout
 pipes. Expect 15–60 seconds per round depending on API latency.
@@ -182,7 +184,7 @@ tests/
 
 ## Example Debate Transcript
 
-Live run — **2026-05-26** | topic: **"Will artificial intelligence replace human jobs"** | **10 complete rounds** (20 debater turns + 1 verdict = 41 messages) | Model: Gemini 2.0 Flash Lite | Winner: **Agent_Con (89 vs 85)**
+Live run — **2026-05-26** | topic: **"Will artificial intelligence replace human jobs"** | **10 rounds** (1 Pro + 1 Con per round · 41 messages total) | Model: Gemini 3.1 Flash Lite | Winner: **Agent_Con (89 vs 85)**
 
 > The Judge's `REMINDER` lines (rounds 2+) are the Context Engineering feedback loop — the judge explicitly reminds each debater of its previous critique before their next turn.  
 > The final verdict is LLM-generated (4 sections: KEY CLASHES / FEEDBACK ADHERENCE / SCORING BREAKDOWN / FINAL CONCLUSION).
