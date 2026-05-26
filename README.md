@@ -182,6 +182,70 @@ tests/
 
 ---
 
+## Debate Analysis
+
+Results from the live 10-round run on **2026-05-26** — topic: *"Will artificial intelligence replace human jobs"* · Model: Gemini 3.1 Flash Lite · Winner: **Agent_Con (89 vs 85)**
+
+### Round-by-Round Scores
+
+![Round-by-round weighted persuasion scores](assets/score_chart.png)
+
+*Weighted score per round (Logic 50% + Citation 30% + Rhetoric 20%). Con established an early lead in round 1 due to Pro's weak citations (0.56 vs 0.88); Con's logic peaked at 0.95 in round 4. Pro closed the gap in rounds 9–10 but never caught up.*
+
+### Score Breakdown by Dimension
+
+![Score breakdown by dimension across all rounds](assets/dimension_chart.png)
+
+*Three scoring dimensions across 10 rounds. The citation gap was the decisive factor — Agent_Con averaged 0.87 vs Agent_Pro's 0.80. Rhetoric was nearly equal (0.91 vs 0.90).*
+
+### Final Scores
+
+![Final score comparison bar chart](assets/final_scores.png)
+
+*Agent_Con wins 89 to 85. Both agents exceeded the 85-point excellence threshold.*
+
+### API Cost Comparison
+
+![Estimated API cost per 10-round debate by model](assets/cost_comparison.png)
+
+*Gemini 3.1 Flash Lite runs at zero cost (free tier). Equivalent debate on Claude Opus 4 would cost ~$1.45.*
+
+### Message Distribution
+
+![Transcript message type distribution](assets/message_distribution.png)
+
+*41 total messages: 10 Pro arguments + 10 Con arguments + 20 judge routing messages + 1 verdict.*
+
+---
+
+## Debate Viewer (HTML)
+
+After every run, `run_once.py` auto-generates a **standalone HTML viewer** — no server needed, open in any browser:
+
+```
+results/debate_<timestamp>.html
+```
+
+Features: gradient Pro/Con chat bubbles with avatars · markdown-rendered arguments (`**bold**`, `*italic*`, `### headings`, lists) · judge feedback cards · animated score bars · 4-section LLM verdict panel.
+
+### Final Verdict (2026-05-26 run)
+
+> **Winner: Agent_Con — 89 vs 85**
+
+**⚔️ KEY CLASHES**
+Round 1 proved instantly decisive; Agent_Con established a massive 32-point lead (0.88 vs 0.56) due to Agent_Pro's failure to provide adequate citations, a deficit from which the Pro side never fully recovered. Round 4 was the second pivotal moment, where Agent_Con's superior logical framework (0.95) outperformed Agent_Pro's struggling citation support (0.75), demonstrating a tactical dominance that solidified Con's lead.
+
+**📋 FEEDBACK ADHERENCE**
+Agent_Con demonstrated superior consistency in adapting to the rigors of the debate. While Agent_Pro showed resilience by narrowing the gap in Rounds 9 and 10, their performance remained volatile. Agent_Con maintained a higher floor of performance, never dropping below a 0.83, whereas Agent_Pro's reliance on reactive shifts rather than a cohesive strategy resulted in inconsistent scoring across the ten rounds.
+
+**📊 SCORING BREAKDOWN**
+The dimension averages reveal a clear hierarchy of competence. Agent_Con dominated in Logical Consistency (0.90 to 0.85), proving more adept at constructing a structurally sound case. The most significant gap exists in Citation Strength (0.87 to 0.80), indicating that Agent_Con's evidence base was consistently more credible and better integrated. Rhetoric Quality was nearly equal (0.91 to 0.90), suggesting that while both agents possessed strong persuasive appeal, Agent_Con's case was ultimately built on a more robust intellectual foundation.
+
+**🏆 FINAL CONCLUSION**
+I award the win to Agent_Con with a final standing of 89% to 85%. Agent_Con secured this victory through superior argumentative stability and evidentiary rigor. By effectively weaponizing the early rounds and maintaining a consistent lead in logical structural integrity, Agent_Con forced Agent_Pro into a defensive position for the duration of the debate. Agent_Pro's inability to match the precision of Con's sourcing prevented them from closing the gap established in the opening session, resulting in a well-deserved, analytical victory for the Con side.
+
+---
+
 ## Example Debate Transcript
 
 Live run — **2026-05-26** | topic: **"Will artificial intelligence replace human jobs"** | **10 rounds** (1 Pro + 1 Con per round · 41 messages total) | Model: Gemini 3.1 Flash Lite | Winner: **Agent_Con (89 vs 85)**

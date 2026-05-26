@@ -80,6 +80,8 @@ Every source file is ≤ 150 lines (PRD §6 non-functional requirement). Larger 
 ```
 src/
 ├── main.py                     ← CLI entry point (delegates to SDK only)
+├── run_once.py                 ← Non-interactive runner; live progress log; saves .txt/.json/.html
+├── generate_html.py            ← Standalone HTML viewer generator (markdown rendering, dark theme)
 ├── pro_runner.py               ← Subprocess entry point — Pro debater
 ├── con_runner.py               ← Subprocess entry point — Con debater
 ├── judge_runner.py             ← Subprocess entry point — Judge
@@ -202,7 +204,7 @@ User      CLI       SDK       Orchestrator   Pro      Judge    Con
 │  config/   — setup.json, rate_limits.json, logging_config.json   │
 │  .env       — API keys (git-ignored)                             │
 │  logs/      — rotating FIFO log files                            │
-│  results/   — debate transcripts, verdict JSON                   │
+│  results/   — debate transcripts (.txt), verdict JSON, HTML viewer (.html)                   │
 └───────────────────────────────────────────────────────────────────┘
          │                              │
          ▼                              ▼
