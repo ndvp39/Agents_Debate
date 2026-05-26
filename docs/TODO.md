@@ -172,6 +172,19 @@
 
 ---
 
+---
+
+## Phase 12 — README Enrichment & Cross-Doc Consistency
+
+| # | Task | Priority | Status | Owner | Definition of Done |
+|---|------|----------|--------|-------|--------------------|
+| 12.1 | **Fix round-count wording everywhere** — Replace "20 debater turns" with "10 rounds (1 Pro + 1 Con each)" in README, notebook, and any other doc that uses the "20 turns" framing. Fix model name inconsistency (Gemini 2.0 vs 3.1 Flash Lite — verify against `config/setup.json` and use that value everywhere). Fix stale "248 tests · 95%+" in TODO.md line 153 → "253 tests · 92%+". Add `TOPIC` constant value from `run_once.py` to the non-interactive quick-start step in README. | High | 🔴 Not Started | Dev | Zero occurrences of "20 debater turns"; model name consistent across README + notebook + TODO; topic shown in quick-start |
+| 12.2 | **Embed charts in README** — Add all 5 analysis charts as inline images directly in README under a new "Debate Analysis" section: `score_chart.png`, `dimension_chart.png`, `final_scores.png`, `cost_comparison.png`, `message_distribution.png`. Include a short caption for each. Viewers must be able to see full results without running any code. | High | 🔴 Not Started | Dev | All 5 charts visible in README on GitHub; each has a caption; section is clearly titled |
+| 12.3 | **Link / preview the HTML viewer in README** — Add a "Debate Viewer" section to README that describes the HTML output, shows the path (`results/debate_<timestamp>.html`), explains how to open it, and links to `generate_html.py`. Include the LLM verdict text (4 sections) inline in README so the debate outcome is fully readable without opening any file. | High | 🔴 Not Started | Dev | Verdict text visible in README; HTML viewer explained with path; verdict sections readable inline |
+| 12.4 | **Full doc consistency audit & fix** — Verify `docs/PRD_judge_agent.md`, `docs/PROMPTS_BOOK.md`, `docs/PLAN.md`, `docs/PRD_ipc_protocol.md` all reflect: (a) 89 vs 85 final scores, (b) LLM-generated verdict with 4 sections, (c) empty-response retry in `llm_retry.py`, (d) `run_once.py` + `generate_html.py` existence, (e) 253 tests / 92%+. Update any stale lines. | Medium | 🔴 Not Started | Dev | No doc references stale scores, test counts, or missing features |
+
+---
+
 ## Summary
 
 | Phase | Tasks | Done |
@@ -188,4 +201,5 @@
 | 9 — Quality gates | 6 | 6 ✅ |
 | 10 — Deliverables | 7 | 7 ✅ |
 | 11 — Final Polish & New Features | 10 | 10 ✅ |
-| **Total** | **81** | **81** |
+| 12 — README Enrichment & Cross-Doc Consistency | 4 | 0 🔴 |
+| **Total** | **85** | **81** |
