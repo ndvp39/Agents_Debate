@@ -206,9 +206,28 @@ Results from the live 10-round run on **2026-05-26** — topic: *"Will artificia
 
 ### API Cost Comparison
 
-![Estimated API cost per 10-round debate by model](assets/cost_comparison.png)
+**Estimated token usage — 10-round debate (41 messages):**
 
-*Gemini 3.1 Flash Lite runs at zero cost (free tier). Equivalent debate on Claude Opus 4 would cost ~$1.45.*
+| | Tokens |
+|---|---|
+| Input tokens | 24,600 |
+| Output tokens | 14,350 |
+| **Total tokens** | **38,950** |
+
+**Cost by model (same token volume):**
+
+| Model | Input ($) | Output ($) | Total ($) |
+|---|---|---|---|
+| Gemini 3.1 Flash Lite *(used)* | 0.0000 | 0.0000 | **$0.00** ✅ free |
+| Gemini 2.0 Flash | 0.0018 | 0.0043 | $0.0061 |
+| Claude Haiku 4.5 | 0.0197 | 0.0574 | $0.0771 |
+| Claude Sonnet 4.6 | 0.0738 | 0.2152 | $0.2891 |
+| Claude Opus 4 | 0.3690 | 1.0762 | $1.4452 |
+
+> Pricing as of 2025 per million tokens. Estimates based on avg ~600 input + 350 output tokens per message.  
+> **Optimization strategies used:** free-tier model selection · max token caps per call type (200 for routing, 800 for verdict, 2048 for arguments) · Gatekeeper queuing to stay within rate limits.
+
+![Estimated API cost per 10-round debate by model](assets/cost_comparison.png)
 
 ### Message Distribution
 
