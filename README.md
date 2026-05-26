@@ -220,6 +220,8 @@ Results from the live 10-round run on **2026-05-26** — topic: *"Will artificia
 
 ## Debate Viewer (HTML)
 
+**[▶ View the live debate](https://htmlpreview.github.io/?https://raw.githubusercontent.com/ndvp39/Agents_Debate/master/assets/debate_example.html)**
+
 After every run, `run_once.py` auto-generates a **standalone HTML viewer** — no server needed, open in any browser:
 
 ```
