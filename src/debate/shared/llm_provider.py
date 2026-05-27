@@ -54,7 +54,7 @@ def make_debater_llm(setup: dict):
 
 
 def make_judge_evaluate_llm(setup: dict):
-    """Return (argument: str, citations: list) -> dict callable."""
+    """Return (prompt: str) -> dict callable. The prompt — including the scoring rubric — is rendered by evaluate_persuasion_score SKILL.md."""
     provider = get_active_provider(setup)
     cfg = _provider_cfg(setup, provider)
     model = cfg.get("judge_model", _default_model(provider))

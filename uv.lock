@@ -23,6 +23,7 @@ dependencies = [
     { name = "google-genai" },
     { name = "httpx" },
     { name = "python-dotenv" },
+    { name = "pyyaml" },
     { name = "tavily-python" },
 ]
 
@@ -44,6 +45,7 @@ requires-dist = [
     { name = "google-genai", specifier = ">=2.6.0" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "tavily-python", specifier = ">=0.3.0" },
 ]
 

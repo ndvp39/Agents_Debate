@@ -17,15 +17,18 @@ from debate.shared.llm_provider import (  # noqa: E402
     make_judge_route_llm,
     make_judge_verdict_llm,
 )
+from debate.skills.loader import SkillLoader  # noqa: E402
 
 
 def main() -> None:
     setup = ConfigManager(config_dir=str(_PROJECT_ROOT / "config")).get_setup()
+    skills = SkillLoader(Path(__file__).resolve().parent / "debate" / "skills")
 
     agent = JudgeAgent(
         evaluate_llm=make_judge_evaluate_llm(setup),
         route_llm=make_judge_route_llm(setup),
         verdict_llm=make_judge_verdict_llm(setup),
+        skills=skills,
     )
     agent.start()
 

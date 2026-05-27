@@ -128,7 +128,14 @@ def test_make_judge_evaluate_llm_anthropic_returns_dict():
     ]
     with patch("anthropic.Anthropic", return_value=mock_client):
         evaluate = make_judge_evaluate_llm(_setup("anthropic"))
-    result = evaluate("great argument", ["source1"])
+    # The prompt is now rendered by the evaluate_persuasion_score skill — the
+    # wrapper just forwards a single string to the API.
+    rendered_prompt = (
+        "You are an impartial, stateless debate judge. ... Score this argument.\n"
+        "great argument\nCitations: ['source1']\n"
+        "Reply with ONLY a raw JSON object."
+    )
+    result = evaluate(rendered_prompt)
     assert result["logical_consistency"] == pytest.approx(0.8)
     assert result["citation_strength"] == pytest.approx(0.7)
     assert result["rhetoric_quality"] == pytest.approx(0.9)
@@ -143,7 +150,12 @@ def test_make_judge_evaluate_llm_gemini_returns_dict():
     with patch.dict(sys.modules, {"google.genai": MagicMock(), "google.genai.types": mock_types}), \
          patch("debate.shared.llm_gemini._gemini_client", return_value=mock_client):
         evaluate = make_judge_evaluate_llm(_setup("gemini"))
-    result = evaluate("argument text", ["cite"])
+    rendered_prompt = (
+        "You are an impartial, stateless debate judge. ... Score this argument.\n"
+        "argument text\nCitations: ['cite']\n"
+        "Reply with ONLY a raw JSON object."
+    )
+    result = evaluate(rendered_prompt)
     assert "logical_consistency" in result
     assert "citation_strength" in result
     assert "rhetoric_quality" in result

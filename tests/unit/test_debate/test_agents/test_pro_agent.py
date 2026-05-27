@@ -1,12 +1,16 @@
-"""Tests for debate.agents.debaters.pro_agent — TDD RED phase."""
+"""Tests for debate.agents.debaters.pro_agent."""
 
 import json
 from io import BytesIO
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from debate.agents.debaters.base_debater import BaseDebater
 from debate.agents.debaters.pro_agent import ProAgent
 from debate.shared.constants import AgentID, MessageType, Stance
+from debate.skills.loader import SkillLoader
+
+SKILLS_ROOT = Path(__file__).resolve().parents[4] / "src" / "debate" / "skills"
 
 
 def _make_pro(topic="AI and jobs"):
@@ -17,6 +21,7 @@ def _make_pro(topic="AI and jobs"):
         search_call=MagicMock(return_value=["Source A."]),
         stdin=BytesIO(),
         stdout=buf,
+        skills=SkillLoader(SKILLS_ROOT),
     )
     return agent, buf
 

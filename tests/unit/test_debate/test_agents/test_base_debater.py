@@ -1,11 +1,16 @@
-"""Tests for debate.agents.debaters.base_debater — TDD RED phase."""
+"""Tests for debate.agents.debaters.base_debater — drives the SkillLoader pipeline."""
 
 import json
 from io import BytesIO
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from debate.agents.debaters.base_debater import BaseDebater
 from debate.shared.constants import AgentID, MessageType, Stance
+from debate.skills.loader import SkillLoader
+
+SKILLS_ROOT = Path(__file__).resolve().parents[4] / "src" / "debate" / "skills"
+
 
 # ---------------------------------------------------------------------------
 # Concrete subclass for testing (BaseDebater is abstract)
@@ -25,6 +30,7 @@ def _make_debater(llm_response="Argument text.", search_results=None):
         search_call=search_call,
         stdin=BytesIO(),
         stdout=buf,
+        skills=SkillLoader(SKILLS_ROOT),
     )
     return agent, buf, llm_call, search_call
 
@@ -39,21 +45,18 @@ def _routing_msg(prompt="Your turn.", feedback="Good."):
 
 
 # ---------------------------------------------------------------------------
-# Skill registry
+# SkillLoader plumbing
 # ---------------------------------------------------------------------------
 
-def test_web_search_tool_registered():
+def test_skill_loader_is_injected():
     agent, *_ = _make_debater()
-    skill_types = [type(s).__name__ for s in agent._skills]
-    assert "WebSearchTool" in skill_types
+    assert isinstance(agent._skills, SkillLoader)
 
 
-def test_seven_argument_skills_registered():
+def test_web_search_tool_is_held_outside_skill_loader():
     agent, *_ = _make_debater()
-    skill_types = [type(s).__name__ for s in agent._skills]
-    for cls_name in ("CraftOpening", "AnalyzeOpponent", "DetectFallacies",
-                     "AdaptStrategy", "BuildCounterArgument", "SynthesizeEvidence", "ApplyRhetoric"):
-        assert cls_name in skill_types
+    from debate.agents.debaters.web_search_tool import WebSearchTool
+    assert isinstance(agent._web_search, WebSearchTool)
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +124,18 @@ def test_anti_sycophancy_injected_in_llm_prompt():
     assert llm_call.called
     all_prompts = " ".join(str(c) for c in llm_call.call_args_list)
     assert any(kw in all_prompts.upper() for kw in ("FORBIDDEN", "NEVER AGREE", "DIRECTIVE", "STRICTLY"))
+
+
+# ---------------------------------------------------------------------------
+# SKILL.md content actually flows through to the LLM
+# ---------------------------------------------------------------------------
+
+def test_craft_opening_template_text_reaches_llm_on_round_1():
+    agent, _, llm_call, _ = _make_debater()
+    agent.respond(_routing_msg())
+    all_prompts = " ".join(str(c) for c in llm_call.call_args_list)
+    # Phrase taken verbatim from craft_opening/SKILL.md instructions:
+    assert "Deliver the strongest possible opening statement" in all_prompts
 
 
 # ---------------------------------------------------------------------------

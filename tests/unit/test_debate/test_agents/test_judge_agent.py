@@ -1,7 +1,8 @@
-"""Tests for debate.agents.judge.judge_agent — TDD RED phase."""
+"""Tests for debate.agents.judge.judge_agent — drives the SkillLoader pipeline."""
 
 import json
 from io import BytesIO
+from pathlib import Path
 
 import pytest
 
@@ -9,12 +10,16 @@ from debate.agents.judge.judge_agent import JudgeAgent
 from debate.ipc.schemas import ArgumentMessage
 from debate.shared.constants import AgentID, MessageType
 from debate.shared.exceptions import InsufficientDataError
+from debate.skills.loader import SkillLoader
+
+SKILLS_ROOT = Path(__file__).resolve().parents[4] / "src" / "debate" / "skills"
+
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _evaluate_llm(argument, citations):
+def _evaluate_llm(prompt: str):
     return {"logical_consistency": 0.8, "citation_strength": 0.7, "rhetoric_quality": 0.6}
 
 
@@ -23,12 +28,21 @@ def _route_llm(prompt: str):
 
 
 def _verdict_llm(prompt: str):
-    return "KEY CLASHES — Round 1 was decisive. FEEDBACK ADHERENCE — Pro adapted well. SCORING BREAKDOWN — Logic dominated. FINAL CONCLUSION — Pro wins on logic."
+    return (
+        "KEY CLASHES — Round 1 was decisive. FEEDBACK ADHERENCE — Pro adapted well. "
+        "SCORING BREAKDOWN — Logic dominated. FINAL CONCLUSION — Pro wins on logic."
+    )
 
 
-def _make_judge(stdout_buf=None):
+def _make_judge(stdout_buf=None, *, verdict_llm=_verdict_llm):
     buf = stdout_buf if stdout_buf is not None else BytesIO()
-    agent = JudgeAgent(evaluate_llm=_evaluate_llm, route_llm=_route_llm, verdict_llm=_verdict_llm, stdout=buf)
+    agent = JudgeAgent(
+        evaluate_llm=_evaluate_llm,
+        route_llm=_route_llm,
+        verdict_llm=verdict_llm,
+        stdout=buf,
+        skills=SkillLoader(SKILLS_ROOT),
+    )
     return agent, buf
 
 
@@ -42,18 +56,17 @@ def _arg(agent_id=AgentID.PRO, round_=1, argument="AI creates more jobs.", citat
 
 
 # ---------------------------------------------------------------------------
-# No internet access
+# SkillLoader plumbing
 # ---------------------------------------------------------------------------
 
-def test_no_web_search_tool_in_skills():
+def test_skill_loader_is_injected():
     agent, _ = _make_judge()
-    skill_types = [type(s).__name__ for s in agent._skills]
-    assert "WebSearchTool" not in skill_types
+    assert isinstance(agent._skills, SkillLoader)
 
 
-def test_judge_has_exactly_four_skills():
+def test_judge_has_no_web_search_capability():
     agent, _ = _make_judge()
-    assert len(agent._skills) == 4
+    assert not hasattr(agent, "_web_search")
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +153,6 @@ def test_declare_verdict_sends_verdict_message():
     agent.process_argument(_arg(AgentID.PRO, round_=1))
     agent.process_argument(_arg(AgentID.CON, round_=1))
     agent.declare_verdict()
-    # verdict is the last JSON line written
     buf.seek(0)
     lines = [ln for ln in buf.read().decode("utf-8").splitlines() if ln.strip()]
     verdict = json.loads(lines[-1])
@@ -178,8 +190,7 @@ def test_declare_verdict_uses_llm_justification():
 
 
 def test_declare_verdict_without_llm_uses_score_context():
-    buf = BytesIO()
-    agent = JudgeAgent(evaluate_llm=_evaluate_llm, route_llm=_route_llm, verdict_llm=None, stdout=buf)
+    agent, buf = _make_judge(verdict_llm=None)
     agent.process_argument(_arg(AgentID.PRO, round_=1))
     agent.process_argument(_arg(AgentID.CON, round_=1))
     agent.declare_verdict()

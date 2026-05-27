@@ -5,6 +5,7 @@ from typing import Any
 
 from debate.agents.debaters.base_debater import BaseDebater
 from debate.shared.constants import AgentID, Stance
+from debate.skills.loader import SkillLoader
 
 
 class ConAgent(BaseDebater):
@@ -19,5 +20,8 @@ class ConAgent(BaseDebater):
         search_call: Callable,
         stdin: Any = None,
         stdout: Any = None,
+        skills: SkillLoader | None = None,
     ) -> None:
-        super().__init__(AgentID.CON, topic, llm_call, search_call, stdin, stdout)
+        super().__init__(
+            AgentID.CON, topic, llm_call, search_call, stdin, stdout, skills=skills,
+        )

@@ -5,15 +5,17 @@ import sys
 from typing import Any
 
 from debate.shared.exceptions import IPCParseError
+from debate.skills.loader import SkillLoader
 
 
 class BaseAgent:
     """Base class for all agent subprocesses.
 
-    Provides JSON send/receive over binary stdin/stdout, a skills registry,
-    and a simple running-state lifecycle. Subclasses add their own logic.
-    stdin and stdout default to sys.stdin.buffer / sys.stdout.buffer so the
-    real subprocess wires up automatically; tests pass BytesIO objects instead.
+    Provides JSON send/receive over binary stdin/stdout, a project-local
+    SkillLoader so subclasses can `self._skills.load("name")`, and a simple
+    running-state lifecycle. stdin and stdout default to sys.stdin.buffer /
+    sys.stdout.buffer so the real subprocess wires up automatically; tests
+    pass BytesIO objects instead.
     """
 
     def __init__(
@@ -21,9 +23,10 @@ class BaseAgent:
         agent_id: str,
         stdin: Any = None,
         stdout: Any = None,
+        skills: SkillLoader | None = None,
     ) -> None:
         self._agent_id = agent_id
-        self._skills: list = []
+        self._skills = skills
         self._running = False
         self._stdin = stdin if stdin is not None else sys.stdin.buffer
         self._stdout = stdout if stdout is not None else sys.stdout.buffer
@@ -39,14 +42,6 @@ class BaseAgent:
     @property
     def is_running(self) -> bool:
         return self._running
-
-    # ------------------------------------------------------------------
-    # Skill registry
-    # ------------------------------------------------------------------
-
-    def register_skill(self, skill: Any) -> None:
-        """Append a skill to the internal registry."""
-        self._skills.append(skill)
 
     # ------------------------------------------------------------------
     # Lifecycle

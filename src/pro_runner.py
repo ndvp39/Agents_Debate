@@ -13,6 +13,7 @@ from debate.agents.debaters.pro_agent import ProAgent  # noqa: E402
 from debate.shared.config import ConfigManager  # noqa: E402
 from debate.shared.constants import MessageType  # noqa: E402
 from debate.shared.llm_provider import make_debater_llm  # noqa: E402
+from debate.skills.loader import SkillLoader  # noqa: E402
 
 
 def main() -> None:
@@ -21,11 +22,13 @@ def main() -> None:
     args = parser.parse_args()
 
     setup = ConfigManager(config_dir=str(_PROJECT_ROOT / "config")).get_setup()
+    skills = SkillLoader(Path(__file__).resolve().parent / "debate" / "skills")
 
     agent = ProAgent(
         topic=args.topic,
         llm_call=make_debater_llm(setup),
         search_call=lambda q: [],
+        skills=skills,
     )
     agent.start()
 

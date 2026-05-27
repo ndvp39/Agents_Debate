@@ -1,13 +1,20 @@
-"""Integration test — full debate pipeline with mocked LLMs (no real API calls)."""
+"""Integration test — full debate pipeline with mocked LLMs (no real API calls).
+
+The SkillLoader uses the real project SKILL.md files; only LLM and search calls are mocked.
+"""
 
 import io
 import json
+from pathlib import Path
 
 from debate.agents.debaters.con_agent import ConAgent
 from debate.agents.debaters.pro_agent import ProAgent
 from debate.agents.judge.judge_agent import JudgeAgent
 from debate.ipc.schemas import ArgumentMessage
 from debate.shared.constants import AgentID, MessageType
+from debate.skills.loader import SkillLoader
+
+SKILLS_ROOT = Path(__file__).resolve().parents[2] / "src" / "debate" / "skills"
 
 
 # ---------------------------------------------------------------------------
@@ -18,7 +25,7 @@ def _mock_llm(prompt: str) -> str:
     return "This is a well-reasoned argument supported by concrete evidence."
 
 
-def _mock_evaluate(argument: str, citations: list) -> dict:
+def _mock_evaluate(prompt: str) -> dict:
     return {"logical_consistency": 0.7, "citation_strength": 0.6, "rhetoric_quality": 0.8}
 
 
@@ -34,24 +41,28 @@ def _mock_search(query: str) -> list:
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _skills() -> SkillLoader:
+    return SkillLoader(SKILLS_ROOT)
+
+
 def _make_pro(topic: str):
     out = io.BytesIO()
     agent = ProAgent(topic=topic, llm_call=_mock_llm, search_call=_mock_search,
-                     stdin=io.BytesIO(), stdout=out)
+                     stdin=io.BytesIO(), stdout=out, skills=_skills())
     return agent, out
 
 
 def _make_con(topic: str):
     out = io.BytesIO()
     agent = ConAgent(topic=topic, llm_call=_mock_llm, search_call=_mock_search,
-                     stdin=io.BytesIO(), stdout=out)
+                     stdin=io.BytesIO(), stdout=out, skills=_skills())
     return agent, out
 
 
 def _make_judge():
     out = io.BytesIO()
     agent = JudgeAgent(evaluate_llm=_mock_evaluate, route_llm=_mock_route,
-                       stdin=io.BytesIO(), stdout=out)
+                       stdin=io.BytesIO(), stdout=out, skills=_skills())
     return agent, out
 
 

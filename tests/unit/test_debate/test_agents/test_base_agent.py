@@ -26,22 +26,18 @@ def test_agent_id_stored():
 
 
 # ---------------------------------------------------------------------------
-# Skill registration
+# Skill loader injection
 # ---------------------------------------------------------------------------
 
-def test_register_skill_adds_to_registry():
+def test_skills_loader_defaults_to_none():
     agent, _ = _make_agent()
-    skill = object()
-    agent.register_skill(skill)
-    assert skill in agent._skills
+    assert agent._skills is None
 
 
-def test_register_multiple_skills_preserves_order():
-    agent, _ = _make_agent()
-    s1, s2, s3 = object(), object(), object()
-    for s in (s1, s2, s3):
-        agent.register_skill(s)
-    assert agent._skills == [s1, s2, s3]
+def test_skills_loader_is_stored_when_provided():
+    loader = MagicMock()
+    agent = BaseAgent("Agent_Test", stdin=BytesIO(), stdout=BytesIO(), skills=loader)
+    assert agent._skills is loader
 
 
 # ---------------------------------------------------------------------------
