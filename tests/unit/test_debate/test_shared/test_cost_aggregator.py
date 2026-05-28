@@ -94,3 +94,53 @@ def test_aggregate_per_agent_carries_model_name(tmp_path):
     out = aggregate_costs(_SETUP, pro, None, None)
     assert out["per_agent"]["Agent_Pro"]["model"] == "gemini-3.1-flash-lite"
     assert out["per_agent"]["Agent_Judge"]["model"] == "gemini-3.1-flash-lite"
+
+
+# ---------------------------------------------------------------------------
+# Honors LLM_PROVIDER env override (matches what the runners use)
+# ---------------------------------------------------------------------------
+
+_BOTH_PROVIDERS_SETUP = {
+    "provider": {
+        "active": "gemini",  # config says gemini …
+        "gemini": {
+            "debater_model": "gemini-3.1-flash-lite",
+            "judge_model": "gemini-3.1-flash-lite",
+        },
+        "anthropic": {
+            "debater_model": "claude-sonnet-4-6",
+            "judge_model": "claude-sonnet-4-6",
+        },
+    },
+    "costs": {
+        "gemini-3.1-flash-lite": {
+            "input_per_million_tokens": 0.25,
+            "output_per_million_tokens": 1.50,
+        },
+        "claude-sonnet-4-6": {
+            "input_per_million_tokens": 3.0,
+            "output_per_million_tokens": 15.0,
+        },
+    },
+}
+
+
+def test_env_override_picks_anthropic_rates_and_model(tmp_path, monkeypatch):
+    """When LLM_PROVIDER=anthropic, aggregation MUST use claude-sonnet-4-6 +
+    Anthropic rates ($3/$15 per 1M) even though setup.provider.active=gemini."""
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    pro = _dump(tmp_path, "pro", 5, 1_000_000, 500_000)
+    out = aggregate_costs(_BOTH_PROVIDERS_SETUP, pro, None, None)
+    # Pro: 1M in × $3 + 0.5M out × $15 = $3.00 + $7.50 = $10.50
+    assert out["per_agent"]["Agent_Pro"]["model"] == "claude-sonnet-4-6"
+    assert out["per_agent"]["Agent_Pro"]["estimated_cost_usd"] == pytest.approx(10.50)
+    assert out["per_agent"]["Agent_Judge"]["model"] == "claude-sonnet-4-6"
+
+
+def test_env_override_picks_gemini_rates_when_unset(tmp_path, monkeypatch):
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    pro = _dump(tmp_path, "pro", 5, 1_000_000, 500_000)
+    out = aggregate_costs(_BOTH_PROVIDERS_SETUP, pro, None, None)
+    # Pro: 1M in × $0.25 + 0.5M out × $1.50 = $0.25 + $0.75 = $1.00
+    assert out["per_agent"]["Agent_Pro"]["model"] == "gemini-3.1-flash-lite"
+    assert out["per_agent"]["Agent_Pro"]["estimated_cost_usd"] == pytest.approx(1.00)

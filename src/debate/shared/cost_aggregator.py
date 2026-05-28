@@ -17,6 +17,8 @@ import json
 import logging
 from pathlib import Path
 
+from debate.shared.llm_provider import get_active_provider
+
 _log = logging.getLogger("debate.cost")
 
 
@@ -79,7 +81,10 @@ def aggregate_costs(
         }
     Returns an empty dict when no cost files were produced.
     """
-    provider_name = setup.get("provider", {}).get("active", "anthropic").lower()
+    # Honor the LLM_PROVIDER env-var override (matches what the runners use)
+    # rather than blindly reading setup["provider"]["active"] — otherwise an
+    # Anthropic run gets costed at Gemini rates and labeled with the wrong model.
+    provider_name = get_active_provider(setup)
     provider_cfg = setup.get("provider", {}).get(provider_name, {})
     debater_model = provider_cfg.get("debater_model", "")
     judge_model = provider_cfg.get("judge_model", "")

@@ -32,22 +32,44 @@ _CONFIG_SETUP_PATH = Path(__file__).resolve().parents[3] / "config" / "setup.jso
 
 
 def _resolve_watchdog_timeout(explicit: float | None) -> float:
-    """Pick the watchdog timeout: explicit arg > config/setup.json > hardcoded default.
+    """Pick the watchdog timeout, with provider-aware precedence:
+      1. explicit arg (caller knows best)
+      2. config/setup.json -> provider.<active>.timeout_seconds (per-provider override)
+      3. config/setup.json -> debate.timeout_seconds (global fallback)
+      4. hardcoded default
 
-    Threading the value through `config/setup.json.debate.timeout_seconds` means
-    operators can tune the timeout without code changes; the hardcoded fallback
-    keeps the SDK importable in test environments where the config file isn't
-    on disk.
+    Per-provider override is the right shape because Sonnet turns run ~3x
+    slower than Gemini Flash Lite (live observation: 80-110 s vs 25-45 s per
+    debater turn), so a single global value either false-positive-kills Sonnet
+    or wastes recovery latency on Gemini.
     """
     if explicit is not None:
         return float(explicit)
     try:
         data = json.loads(_CONFIG_SETUP_PATH.read_text(encoding="utf-8"))
-        return float(data["debate"]["timeout_seconds"])
-    except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
         _log.warning(
-            "sdk: could not read watchdog timeout from %s (%s) — falling back to %.1fs",
-            _CONFIG_SETUP_PATH, exc, _DEFAULT_WATCHDOG_TIMEOUT,
+            "sdk: could not read setup.json (%s) — falling back to watchdog timeout %.1fs",
+            exc, _DEFAULT_WATCHDOG_TIMEOUT,
+        )
+        return _DEFAULT_WATCHDOG_TIMEOUT
+
+    # Per-provider override takes precedence over the global debate setting.
+    try:
+        from debate.shared.llm_provider import get_active_provider
+        provider = get_active_provider(data)
+        provider_cfg = data.get("provider", {}).get(provider, {})
+        if "timeout_seconds" in provider_cfg:
+            return float(provider_cfg["timeout_seconds"])
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("sdk: provider-specific watchdog lookup failed (%s)", exc)
+
+    try:
+        return float(data["debate"]["timeout_seconds"])
+    except (KeyError, TypeError, ValueError) as exc:
+        _log.warning(
+            "sdk: could not read debate.timeout_seconds (%s) — falling back to %.1fs",
+            exc, _DEFAULT_WATCHDOG_TIMEOUT,
         )
         return _DEFAULT_WATCHDOG_TIMEOUT
 
