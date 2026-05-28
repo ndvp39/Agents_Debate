@@ -9,11 +9,17 @@ from debate.shared.exceptions import IPCSchemaError
 
 @dataclass
 class RoutingMessage:
-    """Judge → next debater: valid argument accepted, turn advanced."""
+    """Judge → next debater: valid argument accepted, turn advanced.
+
+    `previous_argument` carries the argument text just evaluated — i.e. the
+    argument the next debater must respond to. Empty on the orchestrator's
+    initial routing to the opening speaker (there is no opponent yet).
+    """
 
     target_agent: str
     judge_feedback: str
     prompt_for_next: str
+    previous_argument: str = ""
     message_type: str = field(default=MessageType.ROUTING)
 
     def __post_init__(self) -> None:
@@ -32,6 +38,7 @@ class RoutingMessage:
                 target_agent=data["target_agent"],
                 judge_feedback=data.get("judge_feedback", ""),
                 prompt_for_next=data["prompt_for_next"],
+                previous_argument=data.get("previous_argument", ""),
                 message_type=data.get("message_type", MessageType.ROUTING),
             )
         except KeyError as exc:
@@ -43,6 +50,7 @@ class RoutingMessage:
             "target_agent": self.target_agent,
             "judge_feedback": self.judge_feedback,
             "prompt_for_next": self.prompt_for_next,
+            "previous_argument": self.previous_argument,
         }
 
 

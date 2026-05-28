@@ -65,7 +65,7 @@ class JudgeAgent(BaseAgent):
         self._round += 1
 
         next_agent = AgentID.CON if msg.agent_id == AgentID.PRO else AgentID.PRO
-        routing = self._build_routing(score, next_agent)
+        routing = self._build_routing(score, next_agent, previous_argument=msg.argument)
         self._last_feedback_sent[next_agent] = routing.judge_feedback
         self.send(routing.to_dict())
 
@@ -105,7 +105,12 @@ class JudgeAgent(BaseAgent):
             rhetoric_quality=float(result["rhetoric_quality"]),
         )
 
-    def _build_routing(self, score: PersuasionScore, next_agent: str) -> RoutingMessage:
+    def _build_routing(
+        self,
+        score: PersuasionScore,
+        next_agent: str,
+        previous_argument: str,
+    ) -> RoutingMessage:
         previous_feedback = self._last_feedback_sent.get(next_agent, "")
         feedback_prompt = self._skills.load("generate_judge_feedback").render(
             logical_consistency=f"{score.logical_consistency:.2f}",
@@ -114,7 +119,7 @@ class JudgeAgent(BaseAgent):
             prior_feedback_followup=self._prior_feedback_followup(previous_feedback),
         )
         feedback = str(self._route_llm(feedback_prompt))
-        prompt_for_next = self._skills.load("compose_next_turn_prompt").render(
+        prompt_for_next = self._skills.load("compose_next_turn_prompt").run(
             next_agent=next_agent,
             judge_feedback_reminder=self._reminder_block(next_agent, previous_feedback),
         )
@@ -122,6 +127,7 @@ class JudgeAgent(BaseAgent):
             target_agent=next_agent,
             judge_feedback=feedback,
             prompt_for_next=prompt_for_next,
+            previous_argument=previous_argument,
         )
 
     # ------------------------------------------------------------------
@@ -175,6 +181,6 @@ class JudgeAgent(BaseAgent):
         if not previous_feedback:
             return ""
         return (
-            f" REMINDER — The Judge previously instructed you: '{previous_feedback}'. "
+            f"REMINDER — The Judge previously instructed you: '{previous_feedback}'. "
             "You MUST address this directive explicitly. Failure to comply will result in a score penalty."
         )

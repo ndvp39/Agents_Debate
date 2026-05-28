@@ -48,7 +48,11 @@ class BaseDebater(BaseAgent):
     def respond(self, routing_message: dict) -> None:
         """Run the skill pipeline and send an ArgumentMessage."""
         judge_feedback = routing_message.get("judge_feedback", "")
-        self._last_opponent_arg = routing_message.get("prompt_for_next", "")
+        # The routing message now carries the opponent's actual argument in
+        # `previous_argument` (added to RoutingMessage). Empty on the
+        # orchestrator's initial round-1 routing — round-1 takes the
+        # craft_opening branch and never reads this value.
+        self._last_opponent_arg = routing_message.get("previous_argument", "")
         current_round = self._round + 1
         result = self._run_pipeline(current_round, judge_feedback)
         self._round = current_round

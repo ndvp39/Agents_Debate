@@ -97,6 +97,21 @@ def test_process_valid_con_argument_routes_to_pro():
     assert msg["target_agent"] == AgentID.PRO
 
 
+def test_routing_carries_speaker_argument_as_previous_argument():
+    """The next debater must receive the full argument text it has to respond to,
+    not just the handoff string. Verifies the previous_argument wiring."""
+    agent, buf = _make_judge()
+    arg_text = "Agent_Pro's actual round-1 prose with specific statistics and citations."
+    agent.process_argument(_arg(agent_id=AgentID.PRO, argument=arg_text))
+    buf.seek(0)
+    msg = json.loads(buf.read().decode("utf-8").strip())
+    assert msg["message_type"] == MessageType.ROUTING
+    assert msg["target_agent"] == AgentID.CON
+    assert msg["previous_argument"] == arg_text
+    # And confirm it is NOT the handoff string.
+    assert "It is your turn now" not in msg["previous_argument"]
+
+
 # ---------------------------------------------------------------------------
 # process_argument — agreement phrase → reprimand
 # ---------------------------------------------------------------------------

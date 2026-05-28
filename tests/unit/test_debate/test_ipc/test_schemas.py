@@ -43,8 +43,33 @@ def test_routing_to_dict_roundtrip():
         target_agent=AgentID.CON,
         judge_feedback="Good.",
         prompt_for_next="Your turn.",
+        previous_argument="The opponent's full argument prose...",
     )
-    assert message_from_dict(msg.to_dict()).target_agent == AgentID.CON
+    parsed = message_from_dict(msg.to_dict())
+    assert parsed.target_agent == AgentID.CON
+    assert parsed.previous_argument == "The opponent's full argument prose..."
+
+
+def test_routing_previous_argument_defaults_empty():
+    msg = RoutingMessage(
+        target_agent=AgentID.PRO,
+        judge_feedback="",
+        prompt_for_next="Open the debate.",
+    )
+    assert msg.previous_argument == ""
+    assert msg.to_dict()["previous_argument"] == ""
+
+
+def test_routing_previous_argument_survives_from_dict():
+    data = {
+        "message_type": MessageType.ROUTING,
+        "target_agent": AgentID.PRO,
+        "judge_feedback": "Strong point.",
+        "prompt_for_next": "Counter the claim.",
+        "previous_argument": "Con's full round-1 argument with citations.",
+    }
+    msg = RoutingMessage.from_dict(data)
+    assert msg.previous_argument == "Con's full round-1 argument with citations."
 
 
 # ---------------------------------------------------------------------------
