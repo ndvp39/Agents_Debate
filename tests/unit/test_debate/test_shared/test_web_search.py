@@ -56,8 +56,30 @@ def test_search_returns_title_url_strings():
         "Bureau of Labor 2024 — https://bls.gov/report",
     ]
     client.search.assert_called_once_with(
-        query="AI and jobs", max_results=3, search_depth="basic",
+        query="AI and jobs",
+        max_results=3,
+        search_depth="advanced",
+        exclude_domains=["facebook.com", "quora.com", "reddit.com", "pinterest.com"],
     )
+
+
+def test_search_excludes_social_media_domains():
+    """The exclude_domains list filters Quora, Facebook, Reddit, Pinterest."""
+    search, client = _build_search({"results": []})
+    search("any query")
+    call_kwargs = client.search.call_args.kwargs
+    excluded = call_kwargs["exclude_domains"]
+    assert "facebook.com" in excluded
+    assert "quora.com" in excluded
+    assert "reddit.com" in excluded
+    assert "pinterest.com" in excluded
+
+
+def test_search_uses_advanced_depth():
+    """Advanced depth surfaces more authoritative content than the basic tier."""
+    search, client = _build_search({"results": []})
+    search("any query")
+    assert client.search.call_args.kwargs["search_depth"] == "advanced"
 
 
 def test_search_caps_at_three_results():

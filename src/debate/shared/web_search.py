@@ -16,6 +16,11 @@ from collections.abc import Callable
 # Match WebSearchTool.MAX_RESULTS — no point fetching more than the tool will keep.
 _MAX_RESULTS = 3
 
+# Social-media and forum domains that produce low-credibility citations for a
+# graded debate. Tavily's `exclude_domains` filters these server-side so the
+# tool surfaces news, research, institutional, and think-tank sources instead.
+_EXCLUDED_DOMAINS = ["facebook.com", "quora.com", "reddit.com", "pinterest.com"]
+
 
 def make_tavily_search(api_key: str) -> Callable[[str], list[str]]:
     """Return a search callable backed by Tavily's REST API.
@@ -39,7 +44,8 @@ def make_tavily_search(api_key: str) -> Callable[[str], list[str]]:
         response = client.search(
             query=query,
             max_results=_MAX_RESULTS,
-            search_depth="basic",
+            search_depth="advanced",
+            exclude_domains=_EXCLUDED_DOMAINS,
         )
         return _format_results(response)
 
