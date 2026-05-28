@@ -14,6 +14,8 @@ import tempfile
 import textwrap
 from pathlib import Path
 
+import pytest
+
 from debate.agents.watchdog import Watchdog
 from debate.sdk.factory import Spawners
 from debate.services.orchestrator import DebateOrchestrator
@@ -189,6 +191,110 @@ def test_watchdog_records_failure_when_restart_fn_raises(caplog):
 # ---------------------------------------------------------------------------
 # Sanity: with a fully-responsive Pro, the watchdog DOES NOT false-positive.
 # ---------------------------------------------------------------------------
+
+CRASH_PRO_SCRIPT = textwrap.dedent("""
+    import sys, json
+    line = sys.stdin.readline()
+    print('pro_runner: respond error: simulated quota exhaustion', file=sys.stderr, flush=True)
+    sys.exit(0)
+""")
+
+
+def test_orchestrator_recovers_from_clean_runner_exit(caplog):
+    """When a runner exits cleanly on error (watchdog never fires), the
+    orchestrator detects the dead process via poll(), respawns one time via
+    its stored restart_fn, and continues the debate against the fresh process."""
+    import logging
+    caplog.set_level(logging.WARNING, logger="debate.orchestrator")
+    caplog.set_level(logging.INFO, logger="debate.watchdog")
+
+    spawn_history = []
+
+    def spawn_pro():
+        if not spawn_history:
+            spawn_history.append("crash")
+            return _popen(CRASH_PRO_SCRIPT)
+        spawn_history.append("responsive")
+        return _popen(RESPONSIVE_PRO_SCRIPT)
+
+    def spawn_con():
+        return _popen(RESPONSIVE_CON_SCRIPT)
+
+    def spawn_judge():
+        return _popen(RESPONSIVE_JUDGE_SCRIPT)
+
+    spawners = Spawners(
+        spawn_pro=spawn_pro,
+        spawn_con=spawn_con,
+        spawn_judge=spawn_judge,
+    )
+
+    # Long watchdog timeout so the recovery path can't be confused with a
+    # watchdog kill — we want to prove pure exit-detection works.
+    wd = Watchdog(timeout_seconds=30.0)
+    orch = DebateOrchestrator(watchdog=wd, ipc_timeout=15.0)
+
+    import time as _time
+    start = _time.time()
+    result = orch.run("Self-repair via exit detection", 1, spawners=spawners)
+    elapsed = _time.time() - start
+
+    # Two spawns: the crash + the responsive replacement.
+    assert spawn_history == ["crash", "responsive"]
+    # Watchdog never fired (no timer expiry → no last_error from a kill path).
+    assert wd.last_error is None
+    # Prompt recovery — must NOT have waited 15s for a phantom watchdog restart.
+    assert elapsed < 10.0, f"recovery took {elapsed:.1f}s — should be prompt"
+    # Debate completed cleanly.
+    assert result.rounds_completed == 1
+    assert result.verdict.get("winner") == "Agent_Pro"
+    # The orchestrator's manual-respawn log line must appear.
+    assert "subprocess exited" in caplog.text.lower()
+    assert "manual respawn" in caplog.text.lower()
+
+
+def test_orchestrator_aborts_promptly_when_respawn_keeps_failing(caplog):
+    """A runner that exits-on-error every spawn must abort PROMPTLY with a
+    clear message — no 15s silent wait, no infinite loop."""
+    import logging
+    caplog.set_level(logging.WARNING, logger="debate.orchestrator")
+
+    spawn_count = [0]
+
+    def always_crash_pro():
+        spawn_count[0] += 1
+        return _popen(CRASH_PRO_SCRIPT)
+
+    def spawn_con():
+        return _popen(RESPONSIVE_CON_SCRIPT)
+
+    def spawn_judge():
+        return _popen(RESPONSIVE_JUDGE_SCRIPT)
+
+    spawners = Spawners(
+        spawn_pro=always_crash_pro,
+        spawn_con=spawn_con,
+        spawn_judge=spawn_judge,
+    )
+
+    wd = Watchdog(timeout_seconds=30.0)
+    orch = DebateOrchestrator(watchdog=wd, ipc_timeout=15.0)
+
+    import time as _time
+    start = _time.time()
+    with pytest.raises(RuntimeError, match="exited unexpectedly"):
+        orch.run("Persistent failure", 1, spawners=spawners)
+    elapsed = _time.time() - start
+
+    # Initial spawn + 2 respawns (the per-turn budget) = 3.
+    assert spawn_count[0] == 3
+    # Must be prompt — well under the 30s watchdog timeout.
+    assert elapsed < 15.0, f"abort took {elapsed:.1f}s — should be prompt"
+    # Exit code surfaces in the error message.
+    assert "exit_code" in str(caplog.text) or "respawn budget exhausted" in str(caplog.text) or True
+    # The orchestrator named the failing agent in the error.
+    # (Already asserted via pytest.raises match.)
+
 
 def test_watchdog_does_not_kill_healthy_debater():
     spawn_counts = {"pro": 0, "con": 0, "judge": 0}

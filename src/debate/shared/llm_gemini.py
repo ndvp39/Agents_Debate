@@ -6,6 +6,8 @@ rate-limiting, retry, and cost accounting. When a gatekeeper is provided:
 * response.usage_metadata.{prompt_token_count, candidates_token_count} is
   reported via `gatekeeper.record_tokens` so the cost summary reflects real,
   server-returned token counts.
+
+Each closure takes a `label` string used for per-call timing logs.
 """
 
 import contextlib
@@ -24,11 +26,12 @@ def _gemini_client():
 def _call_and_record(
     client_call,
     gatekeeper: ApiGatekeeper | None,
+    label: str,
 ) -> Any:
     """Run `client_call` through the gatekeeper (when given), then record tokens."""
     if gatekeeper is None:
-        return _retry(client_call)
-    response = gatekeeper.execute(lambda: _retry(client_call))
+        return _retry(client_call, label=label)
+    response = gatekeeper.execute(lambda: _retry(client_call, label=label))
     with contextlib.suppress(AttributeError, TypeError):
         usage = response.usage_metadata
         gatekeeper.record_tokens(
@@ -43,6 +46,7 @@ def make_gemini_text_llm(
     temperature: float,
     max_tokens: int,
     gatekeeper: ApiGatekeeper | None = None,
+    label: str = "gemini.text",
 ):
     from google.genai import types
     client = _gemini_client()
@@ -53,13 +57,17 @@ def make_gemini_text_llm(
             return client.models.generate_content(
                 model=model, contents=prompt, config=cfg,
             )
-        response = _call_and_record(_do, gatekeeper)
+        response = _call_and_record(_do, gatekeeper, label=label)
         return response.text
 
     return llm_call
 
 
-def make_gemini_evaluate_llm(model: str, gatekeeper: ApiGatekeeper | None = None):
+def make_gemini_evaluate_llm(
+    model: str,
+    gatekeeper: ApiGatekeeper | None = None,
+    label: str = "gemini.evaluate",
+):
     from google.genai import types
     client = _gemini_client()
     cfg = types.GenerateContentConfig(max_output_tokens=2048)
@@ -69,13 +77,17 @@ def make_gemini_evaluate_llm(model: str, gatekeeper: ApiGatekeeper | None = None
             return client.models.generate_content(
                 model=model, contents=prompt, config=cfg,
             )
-        response = _call_and_record(_do, gatekeeper)
+        response = _call_and_record(_do, gatekeeper, label=label)
         return _extract_json(response.text)
 
     return evaluate_llm
 
 
-def make_gemini_route_llm(model: str, gatekeeper: ApiGatekeeper | None = None):
+def make_gemini_route_llm(
+    model: str,
+    gatekeeper: ApiGatekeeper | None = None,
+    label: str = "gemini.route",
+):
     from google.genai import types
     client = _gemini_client()
     cfg = types.GenerateContentConfig(max_output_tokens=200)
@@ -85,13 +97,17 @@ def make_gemini_route_llm(model: str, gatekeeper: ApiGatekeeper | None = None):
             return client.models.generate_content(
                 model=model, contents=prompt, config=cfg,
             )
-        response = _call_and_record(_do, gatekeeper)
+        response = _call_and_record(_do, gatekeeper, label=label)
         return response.text
 
     return route_llm
 
 
-def make_gemini_verdict_llm(model: str, gatekeeper: ApiGatekeeper | None = None):
+def make_gemini_verdict_llm(
+    model: str,
+    gatekeeper: ApiGatekeeper | None = None,
+    label: str = "gemini.verdict",
+):
     from google.genai import types
     client = _gemini_client()
     cfg = types.GenerateContentConfig(max_output_tokens=800)
@@ -101,7 +117,7 @@ def make_gemini_verdict_llm(model: str, gatekeeper: ApiGatekeeper | None = None)
             return client.models.generate_content(
                 model=model, contents=prompt, config=cfg,
             )
-        response = _call_and_record(_do, gatekeeper)
+        response = _call_and_record(_do, gatekeeper, label=label)
         return response.text
 
     return verdict_llm

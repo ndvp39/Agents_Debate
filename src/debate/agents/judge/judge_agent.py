@@ -247,8 +247,18 @@ class JudgeAgent(BaseAgent):
         if self._checkpoint_path is None or not self._checkpoint_path.is_file():
             return
         try:
-            payload = json.loads(self._checkpoint_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+            raw = self._checkpoint_path.read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            _log.warning("judge: checkpoint load failed (%s) — starting fresh", exc)
+            return
+        # The SDK pre-allocates the checkpoint file as an empty placeholder before
+        # the judge subprocess starts; treat empty/whitespace-only content as
+        # "no checkpoint yet" rather than a parse failure.
+        if not raw:
+            return
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError as exc:
             _log.warning("judge: checkpoint load failed (%s) — starting fresh", exc)
             return
         self._round = int(payload.get("round", 0))

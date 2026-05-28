@@ -5,6 +5,13 @@ timer. When an agent hangs, the watchdog kills its subprocess, spawns a fresh on
 via the per-agent closure, and the orchestrator transparently re-sends the
 in-flight message to the new process so the debate continues.
 
+A second recovery path handles agent runners that EXIT CLEANLY on a fatal error
+(e.g. provider quota exhausted): the watchdog never fires (no hang), but stdout
+closes and `receive()` returns EOF. The orchestrator detects this via
+`process.poll()` and triggers ONE manual respawn through the same spawn closure,
+bounded by the per-turn restart budget. If the respawn fails the same way the
+abort is prompt and surfaces the failed agent's identity + exit code.
+
 Debater state is fully reconstructable from the next routing message (which
 carries `previous_argument` and `round_number`). Judge state is checkpointed to
 a small JSON file after every scoring turn; a restarted judge reloads it and
@@ -14,6 +21,7 @@ resumes with full score history.
 import contextlib
 import logging
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from debate.agents.watchdog import Watchdog
@@ -25,9 +33,9 @@ from debate.shared.exceptions import IPCParseError, IPCTimeoutError
 _log = logging.getLogger("debate.orchestrator")
 
 # Window the orchestrator waits for the watchdog's restart_fn to complete after
-# a receive failure. Should comfortably exceed subprocess.Popen startup time
-# even on a cold cache.
-_RESTART_WAIT_SECONDS = 15.0
+# a receive failure. The watchdog's spawn closure is synchronous (subprocess.Popen
+# returns in <1s); 3s is plenty and keeps a runner-exited-on-error abort prompt.
+_RESTART_WAIT_SECONDS = 3.0
 
 # Maximum consecutive restart attempts per turn before giving up.
 _MAX_RESTARTS_PER_TURN = 2
@@ -65,6 +73,10 @@ class DebateOrchestrator:
         # Active process handles, keyed by AgentID. Refreshed after each restart
         # via the per-agent spawn closures registered with the watchdog.
         self._procs: dict[str, subprocess.Popen] = {}
+        # Per-agent spawn closures (mirror of the watchdog's restart_fns), kept
+        # here so the orchestrator can trigger a respawn for the runner-exit
+        # recovery path without going through the watchdog timer flow.
+        self._restart_fns: dict[str, Callable[[], subprocess.Popen]] = {}
 
     def run(
         self,
@@ -175,10 +187,15 @@ class DebateOrchestrator:
     def _receive(self, agent_id: str, resend_message: dict | None) -> dict:
         """Receive a message from `agent_id`, transparently surviving subprocess restarts.
 
-        Arm the watchdog before reading; on a successful read, disarm it.
-        If `_channel.receive` fails (EOF from a killed process, or backstop
-        timeout) AND the watchdog has just restarted the agent, re-send the
-        in-flight message to the new process and retry.
+        Recovery covers two failure modes:
+        1. Watchdog kill — the watchdog timer fired, killed the process, and its
+           restart_fn spawned a fresh one. We pick up the new handle and re-send.
+        2. Runner clean exit — the subprocess exited on its own (e.g. its
+           gatekeeper raised after exhausting retries). The watchdog never
+           fired; we detect via `process.poll()`, trigger one respawn through
+           our own restart_fn map, and re-send.
+        Both paths share the `_MAX_RESTARTS_PER_TURN` budget so a persistently-
+        broken agent surfaces a prompt clear abort rather than infinite recovery.
         """
         restarts = 0
         while True:
@@ -192,35 +209,64 @@ class DebateOrchestrator:
             except (IPCParseError, IPCTimeoutError) as exc:
                 if self._watchdog is None:
                     raise
-                _log.warning(
-                    "orchestrator: receive failed agent=%s err=%s — awaiting watchdog restart",
-                    agent_id, exc,
-                )
+
+                # Path 1: did the watchdog kill+restart the process?
                 restarted = self._watchdog.wait_for_restart(
                     agent_id, timeout=_RESTART_WAIT_SECONDS,
                 )
-                if not restarted or self._watchdog.last_error is not None:
-                    _log.error(
-                        "orchestrator: no restart within %.1fs — aborting (last_error=%s)",
-                        _RESTART_WAIT_SECONDS, self._watchdog.last_error,
-                    )
-                    raise
-                restarts += 1
-                if restarts > _MAX_RESTARTS_PER_TURN:
-                    _log.error(
-                        "orchestrator: exceeded %d restarts on a single turn — aborting",
-                        _MAX_RESTARTS_PER_TURN,
-                    )
-                    raise
-                # Pick up the fresh Popen handle and re-send the in-flight message.
-                self._procs[agent_id] = self._watchdog.current_process(agent_id)
-                if resend_message is not None:
+                if restarted and self._watchdog.last_error is None:
+                    restarts += 1
+                    if restarts > _MAX_RESTARTS_PER_TURN:
+                        _log.error(
+                            "orchestrator: exceeded %d restarts on a single turn — aborting",
+                            _MAX_RESTARTS_PER_TURN,
+                        )
+                        raise
+                    self._procs[agent_id] = self._watchdog.current_process(agent_id)
                     _log.warning(
                         "orchestrator: re-sending in-flight message agent=%s attempt=%d",
                         agent_id, restarts,
                     )
-                    self._channel.send(self._procs[agent_id], resend_message)
-                # loop: arm a fresh timer and retry receive
+                    if resend_message is not None:
+                        self._channel.send(self._procs[agent_id], resend_message)
+                    continue
+
+                # Path 2: runner exited cleanly on error. The watchdog never fired,
+                # so `wait_for_restart` returned False. Detect via process.poll().
+                proc = self._procs[agent_id]
+                exit_code = proc.poll()
+                if exit_code is not None and agent_id in self._restart_fns:
+                    restarts += 1
+                    if restarts > _MAX_RESTARTS_PER_TURN:
+                        raise RuntimeError(
+                            f"{agent_id} subprocess exited unexpectedly "
+                            f"(exit_code={exit_code}) and respawn budget exhausted. "
+                            f"Check the runner's stderr log for the underlying error."
+                        ) from exc
+                    _log.warning(
+                        "orchestrator: %s subprocess exited (code=%s) — manual respawn (attempt=%d)",
+                        agent_id, exit_code, restarts,
+                    )
+                    new_proc = self._restart_fns[agent_id]()
+                    # Sync the watchdog's tracked handle so a future timer fire
+                    # targets the new process, not the stale (zombie) one.
+                    self._watchdog.notify_external_restart(agent_id, new_proc)
+                    if resend_message is not None:
+                        self._channel.send(self._procs[agent_id], resend_message)
+                    continue
+
+                # Neither path applies — surface the original error.
+                if self._watchdog.last_error is not None:
+                    _log.error(
+                        "orchestrator: watchdog restart failed agent=%s err=%s",
+                        agent_id, self._watchdog.last_error,
+                    )
+                else:
+                    _log.error(
+                        "orchestrator: receive failed agent=%s with no recovery path — aborting (%s)",
+                        agent_id, exc,
+                    )
+                raise
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -229,10 +275,12 @@ class DebateOrchestrator:
     def _register_watchdog(self, spawners: Spawners | None) -> None:
         """Register each agent with the watchdog using its per-agent spawn closure.
 
-        The restart_fn closure both spawns the fresh process and updates the
-        orchestrator's `_procs` map so subsequent `_send` / `_receive` calls
-        target the new handle automatically.
+        The restart_fn closures both spawn the fresh process and update the
+        orchestrator's `_procs` map. They are also stored in `self._restart_fns`
+        so the runner-exit recovery path can trigger them without going through
+        the watchdog timer flow.
         """
+        self._restart_fns = {}
         if self._watchdog is None:
             return
         if spawners is not None:
@@ -243,22 +291,18 @@ class DebateOrchestrator:
                     return new_proc
                 return _restart
 
-            self._watchdog.register(
-                self._procs[AgentID.PRO], AgentID.PRO,
-                make_restart(AgentID.PRO, spawners.spawn_pro),
-            )
-            self._watchdog.register(
-                self._procs[AgentID.CON], AgentID.CON,
-                make_restart(AgentID.CON, spawners.spawn_con),
-            )
-            self._watchdog.register(
-                self._procs[AgentID.JUDGE], AgentID.JUDGE,
-                make_restart(AgentID.JUDGE, spawners.spawn_judge),
-            )
+            for agent_id, spawn_fn in (
+                (AgentID.PRO, spawners.spawn_pro),
+                (AgentID.CON, spawners.spawn_con),
+                (AgentID.JUDGE, spawners.spawn_judge),
+            ):
+                fn = make_restart(agent_id, spawn_fn)
+                self._restart_fns[agent_id] = fn
+                self._watchdog.register(self._procs[agent_id], agent_id, fn)
         else:
-            # Test path with explicit procs: register no-op restart_fn (the
-            # tests don't exercise restart). Watchdog still arms/resets timers
-            # so the wiring is exercised.
+            # Test path with explicit procs: no spawners → no respawn capability.
+            # Register no-op restart_fns so the watchdog can still arm/reset timers
+            # (the receive loop won't try to respawn because `agent_id not in self._restart_fns`).
             for agent_id, proc in self._procs.items():
                 self._watchdog.register(proc, agent_id, lambda p=proc: p)
 

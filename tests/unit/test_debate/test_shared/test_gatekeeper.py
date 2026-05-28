@@ -1,14 +1,11 @@
-"""Tests for debate.shared.gatekeeper — written before implementation (TDD RED)."""
+"""Tests for debate.shared.gatekeeper — capacity, queueing, cost-tracking, fail-fast propagation."""
 
+import time
 from unittest.mock import MagicMock
 
 import pytest
 
-from debate.shared.gatekeeper import (
-    ApiGatekeeper,
-    BackpressureError,
-    GatekeeperMaxRetriesError,
-)
+from debate.shared.gatekeeper import ApiGatekeeper, BackpressureError
 
 
 @pytest.fixture
@@ -30,34 +27,21 @@ def mock_config():
     return config
 
 
+# ---------------------------------------------------------------------------
+# Happy path
+# ---------------------------------------------------------------------------
+
 def test_successful_call(mock_config):
     gk = ApiGatekeeper(mock_config)
     result = gk.execute(lambda: "ok")
     assert result == "ok"
 
 
-def test_retry_on_transient_failure(mock_config):
-    attempts = {"n": 0}
-
-    def flaky():
-        attempts["n"] += 1
-        if attempts["n"] < 3:
-            raise ValueError("transient")
-        return "success"
-
+def test_cost_tracking_call_count(mock_config):
     gk = ApiGatekeeper(mock_config)
-    result = gk.execute(flaky)
-    assert result == "success"
-    assert attempts["n"] == 3
-
-
-def test_max_retries_exceeded_raises(mock_config):
-    def always_fails():
-        raise ValueError("always fails")
-
-    gk = ApiGatekeeper(mock_config)
-    with pytest.raises(GatekeeperMaxRetriesError):
-        gk.execute(always_fails)
+    gk.execute(lambda: None)
+    gk.execute(lambda: None)
+    assert gk.get_cost_summary()["total_calls"] == 2
 
 
 def test_cost_tracking_input_tokens(mock_config):
@@ -74,17 +58,63 @@ def test_cost_tracking_output_tokens(mock_config):
     assert summary["total_output_tokens"] == 50
 
 
-def test_cost_tracking_call_count(mock_config):
-    gk = ApiGatekeeper(mock_config)
-    gk.execute(lambda: None)
-    gk.execute(lambda: None)
-    assert gk.get_cost_summary()["total_calls"] == 2
-
-
 def test_queue_status_initially_zero(mock_config):
     gk = ApiGatekeeper(mock_config)
     assert gk.get_queue_status()["queue_depth"] == 0
 
+
+# ---------------------------------------------------------------------------
+# Fail-fast propagation — gatekeeper no longer retries api_call
+# ---------------------------------------------------------------------------
+
+def test_execute_propagates_exception_immediately(mock_config):
+    """Any exception from api_call must propagate from execute() without retry."""
+    attempts = {"n": 0}
+
+    def always_fails():
+        attempts["n"] += 1
+        raise ValueError("boom")
+
+    gk = ApiGatekeeper(mock_config)
+    start = time.time()
+    with pytest.raises(ValueError, match="boom"):
+        gk.execute(always_fails)
+    elapsed = time.time() - start
+    # Single call, no sleep — the inner _retry owns retry policy now.
+    assert attempts["n"] == 1
+    assert elapsed < 0.5, f"execute() should not sleep on failure (took {elapsed:.2f}s)"
+
+
+def test_execute_propagates_daily_quota_runtime_error_immediately(mock_config):
+    """The exact fatal raised by _retry() on daily quota — must NOT be retried."""
+    attempts = {"n": 0}
+
+    def quota_exhausted():
+        attempts["n"] += 1
+        raise RuntimeError("Daily API quota exhausted — please try again tomorrow.")
+
+    gk = ApiGatekeeper(mock_config)
+    start = time.time()
+    with pytest.raises(RuntimeError, match="Daily API quota exhausted"):
+        gk.execute(quota_exhausted)
+    elapsed = time.time() - start
+    assert attempts["n"] == 1
+    # If the gatekeeper retried with retry_after_seconds=0.01 × 2^n, even 3 retries
+    # would only add ~0.07s. We assert much tighter to catch ANY hidden sleep loop.
+    assert elapsed < 0.3, f"daily-quota error must fail fast (took {elapsed:.2f}s)"
+
+
+def test_execute_does_not_increment_cost_on_failure(mock_config):
+    """A failed call must not be counted as a successful call."""
+    gk = ApiGatekeeper(mock_config)
+    with pytest.raises(ValueError):
+        gk.execute(lambda: (_ for _ in ()).throw(ValueError("nope")))
+    assert gk.get_cost_summary()["total_calls"] == 0
+
+
+# ---------------------------------------------------------------------------
+# record_tokens / cost dump (unchanged behavior)
+# ---------------------------------------------------------------------------
 
 def test_record_tokens_adds_tokens_without_incrementing_calls(mock_config):
     gk = ApiGatekeeper(mock_config)
@@ -113,6 +143,10 @@ def test_cost_dump_path_writes_json_after_each_call(mock_config, tmp_path):
     assert payload["total_output_tokens"] == 25
 
 
+# ---------------------------------------------------------------------------
+# Backpressure (capacity full)
+# ---------------------------------------------------------------------------
+
 def test_backpressure_when_queue_full(mock_config):
     mock_config.get_rate_limits.return_value = {
         "version": "1.00",
@@ -128,5 +162,5 @@ def test_backpressure_when_queue_full(mock_config):
         },
     }
     gk = ApiGatekeeper(mock_config)
-    with pytest.raises((BackpressureError, GatekeeperMaxRetriesError)):
+    with pytest.raises(BackpressureError):
         gk.execute(lambda: None)

@@ -1,4 +1,19 @@
-"""Centralized API gatekeeper — all external calls must go through here."""
+"""Centralized API gatekeeper — all external calls must go through here.
+
+The gatekeeper owns **rate limiting / queueing / cost tracking** only. It does
+NOT retry api_call: the inner `_retry()` in `llm_retry.py` already implements
+provider-aware retry (Gemini `retry_in` hints, daily-quota fail-fast, empty-
+response replays) and a gatekeeper-level retry would double-retry on every
+transient failure and — worse — retry on fatal exhaustion errors that the
+inner layer correctly raises (live diagnostics showed this inflating turns
+by 30/60/120s).
+
+`execute(api_call, ...)`:
+1. Waits for rate-limit capacity (or `BackpressureError` if the queue is full).
+2. Calls api_call **exactly once**.
+3. On success, appends a timestamp to the sliding history and records cost.
+4. On any exception, propagates immediately — never sleeps, never retries.
+"""
 
 import json
 import os
@@ -12,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from debate.shared.config import ConfigManager
-from debate.shared.exceptions import BackpressureError, GatekeeperMaxRetriesError
+from debate.shared.exceptions import BackpressureError
 
 
 @dataclass
@@ -30,15 +45,18 @@ class _CostAccumulator:
 
 
 class ApiGatekeeper:
-    """Rate-limiting proxy for all external API calls.
+    """Rate-limiting, queueing, and cost-accounting proxy for external API calls.
 
-    Enforces per-minute and per-hour limits, queues overflow requests
-    (FIFO), retries on transient failures with exponential back-off,
-    and accumulates token usage for cost reporting.
+    Retry policy lives in the inner `_retry()`, not here — see module docstring.
 
-    When `cost_dump_path` is set, the cost summary is written atomically to
-    that path after every successful call — so a debate-orchestrator (in the
-    main process) can read the running totals from each agent subprocess
+    `requests_per_minute` / `requests_per_hour`: sliding-window admission limits.
+    `queue_max_depth`: backpressure cap.
+    `max_retries` / `retry_after_seconds`: read from config for backward
+        compatibility but no longer used (kept so the existing rate_limits.json
+        schema doesn't need a migration).
+
+    `cost_dump_path` (optional): atomic write of `get_cost_summary()` after
+    each successful call — lets a parent process aggregate per-subprocess cost
     without IPC plumbing.
     """
 
@@ -51,8 +69,6 @@ class ApiGatekeeper:
         svc = self._service_cfg(config, service)
         self._rpm: int = svc["requests_per_minute"]
         self._rph: int = svc["requests_per_hour"]
-        self._max_retries: int = svc["max_retries"]
-        self._retry_after: float = svc["retry_after_seconds"]
         self._queue_max: int = svc["queue_max_depth"]
         self._history: deque[float] = deque()
         self._queue: deque[bool] = deque()
@@ -93,27 +109,18 @@ class ApiGatekeeper:
                         self._queue.popleft()
                     return
 
-    def _execute_with_retry(self, api_call: Callable, *args: Any, **kwargs: Any) -> Any:
-        last_exc: Exception | None = None
-        for attempt in range(self._max_retries + 1):
-            try:
-                result = api_call(*args, **kwargs)
-                with self._lock:
-                    self._history.append(time.time())
-                return result
-            except Exception as exc:
-                last_exc = exc
-                if attempt < self._max_retries:
-                    time.sleep(self._retry_after * (2**attempt))
-        raise GatekeeperMaxRetriesError("Max retries exceeded") from last_exc
-
     def execute(self, api_call: Callable, *args: Any, **kwargs: Any) -> Any:
-        """Execute api_call through rate limiting, queuing, and retry."""
+        """Wait for capacity, call api_call once, record cost on success.
+
+        Any exception from api_call propagates immediately — the inner
+        `_retry()` already owns retry policy.
+        """
         input_tokens: int = kwargs.pop("_input_tokens", 0)
         output_tokens: int = kwargs.pop("_output_tokens", 0)
         self._wait_for_capacity()
-        result = self._execute_with_retry(api_call, *args, **kwargs)
+        result = api_call(*args, **kwargs)  # may raise — propagates as-is
         with self._lock:
+            self._history.append(time.time())
             self._cost.record(input_tokens, output_tokens)
         self._dump_cost()
         return result

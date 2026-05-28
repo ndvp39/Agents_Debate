@@ -1,6 +1,7 @@
 """Subprocess entry point for the Judge agent."""
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -9,10 +10,17 @@ from dotenv import load_dotenv
 _PROJECT_ROOT = Path(__file__).parent.parent
 load_dotenv(_PROJECT_ROOT / ".env")
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] %(levelname)-7s %(name)s | %(message)s",
+    datefmt="%H:%M:%S",
+    stream=sys.stderr,
+)
+
 from debate.agents.judge.judge_agent import JudgeAgent  # noqa: E402
 from debate.ipc.schemas import ArgumentMessage  # noqa: E402
 from debate.shared.config import ConfigManager  # noqa: E402
-from debate.shared.constants import MessageType  # noqa: E402
+from debate.shared.constants import AgentID, MessageType  # noqa: E402
 from debate.shared.gatekeeper import ApiGatekeeper  # noqa: E402
 from debate.shared.llm_provider import (  # noqa: E402
     make_judge_evaluate_llm,
@@ -50,9 +58,9 @@ def main() -> None:
     skills = SkillLoader(Path(__file__).resolve().parent / "debate" / "skills")
 
     agent = JudgeAgent(
-        evaluate_llm=make_judge_evaluate_llm(setup, gatekeeper=llm_gk),
-        route_llm=make_judge_route_llm(setup, gatekeeper=llm_gk),
-        verdict_llm=make_judge_verdict_llm(setup, gatekeeper=llm_gk),
+        evaluate_llm=make_judge_evaluate_llm(setup, gatekeeper=llm_gk, label=f"{AgentID.JUDGE}.evaluate"),
+        route_llm=make_judge_route_llm(setup, gatekeeper=llm_gk, label=f"{AgentID.JUDGE}.feedback"),
+        verdict_llm=make_judge_verdict_llm(setup, gatekeeper=llm_gk, label=f"{AgentID.JUDGE}.verdict"),
         skills=skills,
         checkpoint_path=args.checkpoint,
     )

@@ -78,8 +78,18 @@ class DebateSDK:
         self._watchdog = watchdog if watchdog is not None else Watchdog(resolved_timeout)
         # Inject the watchdog into the orchestrator unless one was already
         # wired in (e.g. a test passing its own mock orchestrator).
-        if self._orchestrator._watchdog is None:
-            self._orchestrator._watchdog = self._watchdog
+        if getattr(self._orchestrator, "_watchdog", None) is None:
+            with contextlib.suppress(AttributeError):
+                self._orchestrator._watchdog = self._watchdog
+        # Keep the IPC backstop comfortably above the watchdog timeout so the
+        # watchdog always fires first (it's the recoverable path; IPC abort is fatal).
+        # Wrapped in try/except so mock orchestrators (whose `_ipc_timeout` is a
+        # MagicMock attribute, not a float) don't blow up.
+        try:
+            current = float(self._orchestrator._ipc_timeout)
+            self._orchestrator._ipc_timeout = max(current, resolved_timeout + 60.0)
+        except (AttributeError, TypeError, ValueError):
+            pass
         self._gatekeeper = gatekeeper
         self._result: DebateResult | None = None
         self._active_checkpoint: Path | None = None

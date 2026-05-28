@@ -95,6 +95,18 @@ class Watchdog:
         with self._lock:
             return self._agents[name].process
 
+    def notify_external_restart(self, name: str, new_process: subprocess.Popen) -> None:
+        """Update the tracked process for an externally-restarted agent.
+
+        Use this when something other than the watchdog (e.g. the orchestrator
+        detecting an unexpected subprocess exit) respawned an agent. Without
+        this call, the watchdog's next `kill()` would target the stale handle.
+        """
+        with self._lock:
+            entry = self._agents.get(name)
+            if entry is not None:
+                entry.process = new_process
+
     def wait_for_restart(self, name: str, timeout: float) -> bool:
         """Block until a restart for `name` completes; True on success, False on timeout."""
         with self._lock:

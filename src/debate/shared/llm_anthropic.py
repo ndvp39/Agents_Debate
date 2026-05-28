@@ -5,6 +5,8 @@ rate-limiting, retry, and cost accounting. When a gatekeeper is provided:
 * the API request goes through `gatekeeper.execute(...)` (no bypass possible).
 * response.usage.{input,output}_tokens is reported via `gatekeeper.record_tokens`
   so the cost summary reflects real, server-returned token counts.
+
+Each closure takes a `label` string used for per-call timing logs.
 """
 
 import contextlib
@@ -17,11 +19,12 @@ from debate.shared.llm_retry import _extract_json, _retry
 def _call_and_record(
     client_call,
     gatekeeper: ApiGatekeeper | None,
+    label: str,
 ) -> Any:
     """Run `client_call` through the gatekeeper (when given), then record tokens."""
     if gatekeeper is None:
-        return _retry(client_call)
-    response = gatekeeper.execute(lambda: _retry(client_call))
+        return _retry(client_call, label=label)
+    response = gatekeeper.execute(lambda: _retry(client_call, label=label))
     with contextlib.suppress(AttributeError, TypeError):
         usage = response.usage
         gatekeeper.record_tokens(
@@ -36,6 +39,7 @@ def make_anthropic_text_llm(
     temperature: float,
     max_tokens: int,
     gatekeeper: ApiGatekeeper | None = None,
+    label: str = "anthropic.text",
 ):
     import anthropic
     client = anthropic.Anthropic()
@@ -46,13 +50,17 @@ def make_anthropic_text_llm(
                 model=model, max_tokens=max_tokens, temperature=temperature,
                 messages=[{"role": "user", "content": prompt}],
             )
-        response = _call_and_record(_do, gatekeeper)
+        response = _call_and_record(_do, gatekeeper, label=label)
         return response.content[0].text
 
     return llm_call
 
 
-def make_anthropic_evaluate_llm(model: str, gatekeeper: ApiGatekeeper | None = None):
+def make_anthropic_evaluate_llm(
+    model: str,
+    gatekeeper: ApiGatekeeper | None = None,
+    label: str = "anthropic.evaluate",
+):
     import anthropic
     client = anthropic.Anthropic()
 
@@ -62,13 +70,17 @@ def make_anthropic_evaluate_llm(model: str, gatekeeper: ApiGatekeeper | None = N
                 model=model, max_tokens=256,
                 messages=[{"role": "user", "content": prompt}],
             )
-        response = _call_and_record(_do, gatekeeper)
+        response = _call_and_record(_do, gatekeeper, label=label)
         return _extract_json(response.content[0].text)
 
     return evaluate_llm
 
 
-def make_anthropic_route_llm(model: str, gatekeeper: ApiGatekeeper | None = None):
+def make_anthropic_route_llm(
+    model: str,
+    gatekeeper: ApiGatekeeper | None = None,
+    label: str = "anthropic.route",
+):
     import anthropic
     client = anthropic.Anthropic()
 
@@ -78,13 +90,17 @@ def make_anthropic_route_llm(model: str, gatekeeper: ApiGatekeeper | None = None
                 model=model, max_tokens=200,
                 messages=[{"role": "user", "content": prompt}],
             )
-        response = _call_and_record(_do, gatekeeper)
+        response = _call_and_record(_do, gatekeeper, label=label)
         return response.content[0].text
 
     return route_llm
 
 
-def make_anthropic_verdict_llm(model: str, gatekeeper: ApiGatekeeper | None = None):
+def make_anthropic_verdict_llm(
+    model: str,
+    gatekeeper: ApiGatekeeper | None = None,
+    label: str = "anthropic.verdict",
+):
     import anthropic
     client = anthropic.Anthropic()
 
@@ -94,7 +110,7 @@ def make_anthropic_verdict_llm(model: str, gatekeeper: ApiGatekeeper | None = No
                 model=model, max_tokens=800,
                 messages=[{"role": "user", "content": prompt}],
             )
-        response = _call_and_record(_do, gatekeeper)
+        response = _call_and_record(_do, gatekeeper, label=label)
         return response.content[0].text
 
     return verdict_llm

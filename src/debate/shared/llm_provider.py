@@ -42,11 +42,12 @@ def get_active_provider(setup: dict) -> str:
     return setup.get("provider", {}).get("active", _DEFAULT_PROVIDER).lower()
 
 
-def make_debater_llm(setup: dict, gatekeeper: ApiGatekeeper | None = None):
+def make_debater_llm(setup: dict, gatekeeper: ApiGatekeeper | None = None, label: str = "debater"):
     """Return (prompt: str) -> str callable for the active provider.
 
     When `gatekeeper` is provided, every API request is routed through
-    `gatekeeper.execute(...)` so it is rate-limited and cost-accounted.
+    `gatekeeper.execute(...)` so it is rate-limited and cost-accounted. The
+    `label` is used in per-call timing logs.
     """
     provider = get_active_provider(setup)
     cfg = _provider_cfg(setup, provider)
@@ -54,38 +55,38 @@ def make_debater_llm(setup: dict, gatekeeper: ApiGatekeeper | None = None):
     temperature = cfg.get("temperature", 0.7)
     max_tokens = cfg.get("max_tokens", 1024)
     if provider == "gemini":
-        return make_gemini_text_llm(model, temperature, max_tokens, gatekeeper=gatekeeper)
-    return make_anthropic_text_llm(model, temperature, max_tokens, gatekeeper=gatekeeper)
+        return make_gemini_text_llm(model, temperature, max_tokens, gatekeeper=gatekeeper, label=label)
+    return make_anthropic_text_llm(model, temperature, max_tokens, gatekeeper=gatekeeper, label=label)
 
 
-def make_judge_evaluate_llm(setup: dict, gatekeeper: ApiGatekeeper | None = None):
+def make_judge_evaluate_llm(setup: dict, gatekeeper: ApiGatekeeper | None = None, label: str = "judge.evaluate"):
     """Return (prompt: str) -> dict callable. The prompt — including the scoring rubric — is rendered by evaluate_persuasion_score SKILL.md."""
     provider = get_active_provider(setup)
     cfg = _provider_cfg(setup, provider)
     model = cfg.get("judge_model", _default_model(provider))
     if provider == "gemini":
-        return make_gemini_evaluate_llm(model, gatekeeper=gatekeeper)
-    return make_anthropic_evaluate_llm(model, gatekeeper=gatekeeper)
+        return make_gemini_evaluate_llm(model, gatekeeper=gatekeeper, label=label)
+    return make_anthropic_evaluate_llm(model, gatekeeper=gatekeeper, label=label)
 
 
-def make_judge_route_llm(setup: dict, gatekeeper: ApiGatekeeper | None = None):
+def make_judge_route_llm(setup: dict, gatekeeper: ApiGatekeeper | None = None, label: str = "judge.feedback"):
     """Return (prompt: str) -> str callable used by RouteTurn to generate feedback."""
     provider = get_active_provider(setup)
     cfg = _provider_cfg(setup, provider)
     model = cfg.get("judge_model", _default_model(provider))
     if provider == "gemini":
-        return make_gemini_route_llm(model, gatekeeper=gatekeeper)
-    return make_anthropic_route_llm(model, gatekeeper=gatekeeper)
+        return make_gemini_route_llm(model, gatekeeper=gatekeeper, label=label)
+    return make_anthropic_route_llm(model, gatekeeper=gatekeeper, label=label)
 
 
-def make_judge_verdict_llm(setup: dict, gatekeeper: ApiGatekeeper | None = None):
+def make_judge_verdict_llm(setup: dict, gatekeeper: ApiGatekeeper | None = None, label: str = "judge.verdict"):
     """Return (prompt: str) -> str callable for the final LLM-generated verdict."""
     provider = get_active_provider(setup)
     cfg = _provider_cfg(setup, provider)
     model = cfg.get("judge_model", _default_model(provider))
     if provider == "gemini":
-        return make_gemini_verdict_llm(model, gatekeeper=gatekeeper)
-    return make_anthropic_verdict_llm(model, gatekeeper=gatekeeper)
+        return make_gemini_verdict_llm(model, gatekeeper=gatekeeper, label=label)
+    return make_anthropic_verdict_llm(model, gatekeeper=gatekeeper, label=label)
 
 
 def _provider_cfg(setup: dict, provider: str) -> dict:

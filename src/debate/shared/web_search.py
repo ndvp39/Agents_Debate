@@ -14,9 +14,13 @@ doesn't bill per token.
 
 from __future__ import annotations
 
+import logging
+import time
 from collections.abc import Callable
 
 from debate.shared.gatekeeper import ApiGatekeeper
+
+_log = logging.getLogger("debate.tavily")
 
 # Match WebSearchTool.MAX_RESULTS — no point fetching more than the tool will keep.
 _MAX_RESULTS = 3
@@ -30,6 +34,7 @@ _EXCLUDED_DOMAINS = ["facebook.com", "quora.com", "reddit.com", "pinterest.com"]
 def make_tavily_search(
     api_key: str,
     gatekeeper: ApiGatekeeper | None = None,
+    label: str = "tavily",
 ) -> Callable[[str], list[str]]:
     """Return a search callable backed by Tavily's REST API.
 
@@ -39,6 +44,8 @@ def make_tavily_search(
     so web-search rate limits (rate_limits.json service "web_search") are
     enforced and call counts accumulate. Network or serialization failures
     propagate; `WebSearchTool` already isolates them.
+
+    `label` is used in the per-call timing log line.
     """
     if not api_key:
         raise ValueError("Tavily API key must be a non-empty string")
@@ -52,6 +59,7 @@ def make_tavily_search(
     def search(query: str) -> list[str]:
         if not query or not query.strip():
             return []
+        start = time.time()
         def _do():
             return client.search(
                 query=query,
@@ -63,7 +71,13 @@ def make_tavily_search(
             response = _do()
         else:
             response = gatekeeper.execute(_do)
-        return _format_results(response)
+        results = _format_results(response)
+        _log.info(
+            "[%s] query=%r took=%.2fs results=%d",
+            label, (query[:80] + "…") if len(query) > 80 else query,
+            time.time() - start, len(results),
+        )
+        return results
 
     return search
 
