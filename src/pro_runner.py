@@ -1,6 +1,7 @@
 """Subprocess entry point for the Pro debater agent."""
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -13,7 +14,20 @@ from debate.agents.debaters.pro_agent import ProAgent  # noqa: E402
 from debate.shared.config import ConfigManager  # noqa: E402
 from debate.shared.constants import MessageType  # noqa: E402
 from debate.shared.llm_provider import make_debater_llm  # noqa: E402
+from debate.shared.web_search import make_tavily_search  # noqa: E402
 from debate.skills.loader import SkillLoader  # noqa: E402
+
+
+def _make_search_call():
+    api_key = os.getenv("TAVILY_API_KEY", "").strip()
+    if api_key:
+        return make_tavily_search(api_key)
+    print(
+        "pro_runner: TAVILY_API_KEY not set — web search disabled; "
+        "arguments will run without retrieved sources.",
+        file=sys.stderr,
+    )
+    return lambda q: []
 
 
 def main() -> None:
@@ -27,7 +41,7 @@ def main() -> None:
     agent = ProAgent(
         topic=args.topic,
         llm_call=make_debater_llm(setup),
-        search_call=lambda q: [],
+        search_call=_make_search_call(),
         skills=skills,
     )
     agent.start()

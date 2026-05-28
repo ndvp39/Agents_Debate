@@ -15,6 +15,11 @@ _ANTI_SYCOPHANCY = (
     "Your only goal is to WIN this debate for your side."
 )
 
+# Honest marker used when web search returned nothing — never reads as a real
+# source. ArgumentMessage requires a non-empty citations list, so we emit this
+# in lieu of fabricating a citation string.
+_NO_SOURCES_MARKER = "[no web sources retrieved]"
+
 
 class BaseDebater(BaseAgent):
     """Shared debater logic: drives the SKILL.md pipeline via SkillLoader.
@@ -56,7 +61,10 @@ class BaseDebater(BaseAgent):
         current_round = self._round + 1
         result = self._run_pipeline(current_round, judge_feedback)
         self._round = current_round
-        citations = result["citations"] or [f"Searched: {self._topic}"]
+        # ArgumentMessage rejects empty citations lists, so we still need at
+        # least one entry. When the search returned nothing, emit an honest,
+        # clearly-not-a-citation marker rather than a fabricated source string.
+        citations = result["citations"] or [_NO_SOURCES_MARKER]
         msg = ArgumentMessage(
             agent_id=self.agent_id,
             round=current_round,
@@ -104,9 +112,11 @@ class BaseDebater(BaseAgent):
             round_number, 0.5, 0.5, analysis, fallacies,
         )
 
-        # Build a targeted search query from the opponent's weakest claim rather than the generic topic
+        # Build a targeted search query from the opponent's weakest claim, tethered to the debate topic
+        # so Tavily stays on-subject. weakest_point can be multi-sentence prose; the helper truncates
+        # to keep the final query under Tavily's 400-char limit.
         weakest = analysis.get("weakest_point", "") or analysis.get("main_claim", "")
-        search_query = f"evidence statistics: {weakest}" if weakest else self._topic
+        search_query = self._build_search_query(self._topic, weakest) or self._topic
         raw2 = self._web_search.search(search_query)
 
         counter_prompt = self._skills.load("build_counter_argument").render(
@@ -117,7 +127,9 @@ class BaseDebater(BaseAgent):
         )
         counter = str(llm(counter_prompt))
 
-        evidence = self._skills.load("synthesize_evidence").run(counter, raw + raw2)
+        # Targeted results first so round-specific sources win the MAX_CITATIONS slots;
+        # the generic topic results (raw) act as a fallback if the targeted search returned fewer than 3.
+        evidence = self._skills.load("synthesize_evidence").run(counter, raw2 + raw)
         rhetoric_prompt = self._skills.load("apply_rhetoric").render(
             round_number=round_number,
             stance=self.STANCE,
@@ -130,6 +142,32 @@ class BaseDebater(BaseAgent):
     def _wrapped_llm(self, prompt: str) -> Any:
         directive = _ANTI_SYCOPHANCY.format(stance=self.STANCE, topic=self._topic)
         return self._llm_call(f"{directive}\n\n{prompt}")
+
+    @staticmethod
+    def _build_search_query(topic: str, weakest_point: str) -> str:
+        """Build a Tavily-safe targeted query that stays tethered to the debate topic.
+
+        Tavily rejects queries over 400 characters. The LLM's `weakest_point`
+        output is often a full paragraph, so we take its first sentence and cap
+        at 250 chars; the debate topic leads the query so search results stay
+        on-subject rather than drifting toward generic keyword matches. Returns
+        "" only when BOTH inputs are empty.
+        """
+        text = (weakest_point or "").strip()
+        for terminator in (". ", "! ", "? ", "\n"):
+            idx = text.find(terminator)
+            if idx > 0:
+                text = text[:idx]
+                break
+        text = text.strip()[:250].strip()
+        topic = (topic or "").strip()
+        if not topic and not text:
+            return ""
+        if not text:
+            return topic
+        if not topic:
+            return text
+        return f"{topic} {text}"
 
     @staticmethod
     def _coerce_analysis(response: Any) -> dict:

@@ -23,7 +23,11 @@ class _ProDebater(BaseDebater):
 def _make_debater(llm_response="Argument text.", search_results=None):
     buf = BytesIO()
     llm_call = MagicMock(return_value=llm_response)
-    search_call = MagicMock(return_value=search_results or ["Source A."])
+    # Distinguish "caller wants empty results" from "caller didn't specify" —
+    # an empty list is falsy and the old `or` shortcut swallowed it.
+    if search_results is None:
+        search_results = ["Source A."]
+    search_call = MagicMock(return_value=search_results)
     agent = _ProDebater(
         topic="AI and jobs",
         llm_call=llm_call,
@@ -142,10 +146,92 @@ def test_craft_opening_template_text_reaches_llm_on_round_1():
 # Graceful handling when search returns nothing
 # ---------------------------------------------------------------------------
 
-def test_respond_with_no_search_results_still_sends_argument():
+def test_respond_with_no_search_results_uses_honest_marker():
+    """Empty search must NOT fabricate a citation-looking string (the old
+    `"Searched: <topic>"` stub). Use an honest, clearly-not-a-source marker."""
     agent, buf, *_ = _make_debater(search_results=[])
     agent.respond(_routing_msg())
     buf.seek(0)
     msg = json.loads(buf.read().decode("utf-8").strip())
     assert msg["message_type"] == MessageType.ARGUMENT
-    assert len(msg["citations"]) >= 1  # fallback citation added
+    assert len(msg["citations"]) == 1
+    citation = msg["citations"][0]
+    assert "no web sources retrieved" in citation.lower()
+    assert "searched:" not in citation.lower()  # the old fabricated fallback
+
+
+# ---------------------------------------------------------------------------
+# _build_search_query — tethered to debate topic, capped under Tavily's 400-char limit
+# ---------------------------------------------------------------------------
+
+TOPIC = "Will artificial intelligence replace human jobs"
+
+
+def test_build_search_query_both_empty_returns_empty():
+    assert BaseDebater._build_search_query("", "") == ""
+    assert BaseDebater._build_search_query(None, None) == ""
+    assert BaseDebater._build_search_query("   ", "  ") == ""
+
+
+def test_build_search_query_falls_back_to_topic_when_weakest_empty():
+    assert BaseDebater._build_search_query(TOPIC, "") == TOPIC
+    assert BaseDebater._build_search_query(TOPIC, None) == TOPIC
+
+
+def test_build_search_query_leads_with_topic_then_weakest():
+    out = BaseDebater._build_search_query(TOPIC, "reliance on the 'Luddite Fallacy'")
+    assert out == f"{TOPIC} reliance on the 'Luddite Fallacy'"
+
+
+def test_build_search_query_takes_first_sentence_of_weakest():
+    weakest = (
+        "The opponent relies on the Luddite Fallacy. They also cite outdated 2014 data. "
+        "Furthermore, they ignore productivity research from 2024."
+    )
+    out = BaseDebater._build_search_query(TOPIC, weakest)
+    assert out == f"{TOPIC} The opponent relies on the Luddite Fallacy"
+
+
+def test_build_search_query_truncates_single_long_sentence():
+    weakest = "a" * 500
+    out = BaseDebater._build_search_query(TOPIC, weakest)
+    # Topic prefix (47 chars) + " " + 250-char weakest cap = 298 chars total.
+    assert out.startswith(f"{TOPIC} ")
+    assert len(out) == len(TOPIC) + 1 + 250
+    assert len(out) < 400
+
+
+def test_build_search_query_always_under_400_chars_for_pathological_input():
+    weakest = (
+        "This is an extremely long single-sentence weakest-point output where the LLM "
+        "rambled on about supporting points, hidden assumptions, falsified premises, "
+        "and various rhetorical flourishes that should never end and definitely keep "
+        "going far beyond what any reasonable search engine would accept as a query, "
+        "extending well past 400 characters of continuous prose with no punctuation "
+        "that could serve as a sentence boundary anywhere in this entire mess of words"
+    )
+    out = BaseDebater._build_search_query(TOPIC, weakest)
+    assert len(out) < 400
+
+
+def test_build_search_query_handles_newline_terminator():
+    weakest = "Main claim about AI displacement\nSecondary point about retraining"
+    out = BaseDebater._build_search_query(TOPIC, weakest)
+    assert out == f"{TOPIC} Main claim about AI displacement"
+
+
+def test_build_search_query_returns_weakest_only_when_topic_empty():
+    out = BaseDebater._build_search_query("", "Just the weakest point")
+    assert out == "Just the weakest point"
+
+
+def test_respond_with_real_search_results_uses_them():
+    agent, buf, *_ = _make_debater(search_results=[
+        "AI Job Impact Study — https://example.org/study",
+        "BLS 2024 Report — https://bls.gov/report",
+    ])
+    agent.respond(_routing_msg())
+    buf.seek(0)
+    msg = json.loads(buf.read().decode("utf-8").strip())
+    assert "no web sources retrieved" not in " ".join(msg["citations"]).lower()
+    assert any("example.org" in c for c in msg["citations"])
