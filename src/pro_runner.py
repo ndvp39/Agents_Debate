@@ -13,15 +13,16 @@ load_dotenv(_PROJECT_ROOT / ".env")
 from debate.agents.debaters.pro_agent import ProAgent  # noqa: E402
 from debate.shared.config import ConfigManager  # noqa: E402
 from debate.shared.constants import MessageType  # noqa: E402
+from debate.shared.gatekeeper import ApiGatekeeper  # noqa: E402
 from debate.shared.llm_provider import make_debater_llm  # noqa: E402
 from debate.shared.web_search import make_tavily_search  # noqa: E402
 from debate.skills.loader import SkillLoader  # noqa: E402
 
 
-def _make_search_call():
+def _make_search_call(gatekeeper):
     api_key = os.getenv("TAVILY_API_KEY", "").strip()
     if api_key:
-        return make_tavily_search(api_key)
+        return make_tavily_search(api_key, gatekeeper=gatekeeper)
     print(
         "pro_runner: TAVILY_API_KEY not set — web search disabled; "
         "arguments will run without retrieved sources.",
@@ -33,15 +34,29 @@ def _make_search_call():
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--topic", required=True)
+    parser.add_argument(
+        "--cost-output",
+        type=Path,
+        default=None,
+        help="Path to write the LLM gatekeeper's cost summary after every call.",
+    )
     args = parser.parse_args()
 
-    setup = ConfigManager(config_dir=str(_PROJECT_ROOT / "config")).get_setup()
+    config = ConfigManager(config_dir=str(_PROJECT_ROOT / "config"))
+    setup = config.get_setup()
+
+    # Per-subprocess gatekeepers: one for the LLM, one for Tavily.
+    # The LLM gatekeeper also dumps its cost summary so the parent SDK can
+    # aggregate per-agent costs without IPC plumbing.
+    llm_gk = ApiGatekeeper(config, service="llm", cost_dump_path=args.cost_output)
+    search_gk = ApiGatekeeper(config, service="web_search")
+
     skills = SkillLoader(Path(__file__).resolve().parent / "debate" / "skills")
 
     agent = ProAgent(
         topic=args.topic,
-        llm_call=make_debater_llm(setup),
-        search_call=_make_search_call(),
+        llm_call=make_debater_llm(setup, gatekeeper=llm_gk),
+        search_call=_make_search_call(search_gk),
         skills=skills,
     )
     agent.start()

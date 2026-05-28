@@ -1,10 +1,14 @@
 """Centralized API gatekeeper — all external calls must go through here."""
 
+import json
+import os
+import tempfile
 import threading
 import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from debate.shared.config import ConfigManager
@@ -31,9 +35,19 @@ class ApiGatekeeper:
     Enforces per-minute and per-hour limits, queues overflow requests
     (FIFO), retries on transient failures with exponential back-off,
     and accumulates token usage for cost reporting.
+
+    When `cost_dump_path` is set, the cost summary is written atomically to
+    that path after every successful call — so a debate-orchestrator (in the
+    main process) can read the running totals from each agent subprocess
+    without IPC plumbing.
     """
 
-    def __init__(self, config: ConfigManager, service: str = "default") -> None:
+    def __init__(
+        self,
+        config: ConfigManager,
+        service: str = "default",
+        cost_dump_path: Path | None = None,
+    ) -> None:
         svc = self._service_cfg(config, service)
         self._rpm: int = svc["requests_per_minute"]
         self._rph: int = svc["requests_per_hour"]
@@ -44,6 +58,9 @@ class ApiGatekeeper:
         self._queue: deque[bool] = deque()
         self._lock = threading.Lock()
         self._cost = _CostAccumulator()
+        self._cost_dump_path: Path | None = (
+            Path(cost_dump_path) if cost_dump_path else None
+        )
 
     @staticmethod
     def _service_cfg(config: ConfigManager, service: str) -> dict:
@@ -96,8 +113,40 @@ class ApiGatekeeper:
         output_tokens: int = kwargs.pop("_output_tokens", 0)
         self._wait_for_capacity()
         result = self._execute_with_retry(api_call, *args, **kwargs)
-        self._cost.record(input_tokens, output_tokens)
+        with self._lock:
+            self._cost.record(input_tokens, output_tokens)
+        self._dump_cost()
         return result
+
+    def record_tokens(self, input_tokens: int, output_tokens: int) -> None:
+        """Add token usage to the accumulator WITHOUT bumping `total_calls`.
+
+        Use this after `execute()` returns to record real usage extracted from
+        the provider's response (e.g. response.usage on Anthropic). It complements
+        the pre-call kwargs path used by callers that can estimate tokens upfront.
+        """
+        with self._lock:
+            self._cost.total_input_tokens += input_tokens
+            self._cost.total_output_tokens += output_tokens
+        self._dump_cost()
+
+    def _dump_cost(self) -> None:
+        """Atomically write the running cost summary to the dump path, if set."""
+        if self._cost_dump_path is None:
+            return
+        payload = self.get_cost_summary()
+        path = self._cost_dump_path
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            fd, tmp_name = tempfile.mkstemp(
+                prefix=path.name + ".", suffix=".tmp", dir=str(path.parent),
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(payload, fh)
+            os.replace(tmp_name, path)
+        except OSError:
+            # Cost reporting is best-effort; never crash the request path.
+            pass
 
     def get_queue_status(self) -> dict:
         """Return current queue depth."""

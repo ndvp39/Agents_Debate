@@ -82,6 +82,34 @@ def test_search_uses_advanced_depth():
     assert client.search.call_args.kwargs["search_depth"] == "advanced"
 
 
+def test_search_routes_through_gatekeeper_when_provided():
+    """When a gatekeeper is supplied, Tavily's network call goes through `gatekeeper.execute(...)`."""
+    client = MagicMock()
+    client.search.return_value = {"results": [{"title": "T", "url": "https://u"}]}
+    gk = MagicMock()
+    # Pass-through executor so the real client.search() runs and we can assert the gate was used.
+    gk.execute.side_effect = lambda fn: fn()
+    factory = MagicMock(return_value=client)
+    with patch.dict(sys.modules, {"tavily": _stub_tavily_module(factory)}):
+        search = make_tavily_search("test-key", gatekeeper=gk)
+    out = search("ai jobs")
+    assert out == ["T — https://u"]
+    gk.execute.assert_called_once()
+    client.search.assert_called_once()
+
+
+def test_search_does_not_call_gatekeeper_on_empty_query():
+    """Empty queries short-circuit BEFORE the gate — saves a slot for real work."""
+    client = MagicMock()
+    gk = MagicMock()
+    factory = MagicMock(return_value=client)
+    with patch.dict(sys.modules, {"tavily": _stub_tavily_module(factory)}):
+        search = make_tavily_search("test-key", gatekeeper=gk)
+    assert search("") == []
+    gk.execute.assert_not_called()
+    client.search.assert_not_called()
+
+
 def test_search_caps_at_three_results():
     response = {"results": [
         {"title": f"T{i}", "url": f"https://e/{i}"} for i in range(10)

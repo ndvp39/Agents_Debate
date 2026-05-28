@@ -24,6 +24,9 @@ def subprocess_factory(
     rounds: int,
     *,
     judge_checkpoint_path: Path | None = None,
+    pro_cost_path: Path | None = None,
+    con_cost_path: Path | None = None,
+    judge_cost_path: Path | None = None,
 ) -> Spawners:
     """Build per-agent spawn closures for one debate session.
 
@@ -31,13 +34,26 @@ def subprocess_factory(
     restarted judge reloads its accumulated state and resumes with full score
     history (debater state is replayed via the next routing message; judge
     state is not, so a file checkpoint is required for safe restart).
+
+    Each runner also receives an optional `--cost-output` path; the per-agent
+    gatekeepers dump their running cost summary there so the SDK can aggregate
+    cost totals at debate end without IPC plumbing.
     """
     pipe = {"stdin": subprocess.PIPE, "stdout": subprocess.PIPE}
+
     pro_cmd = [sys.executable, "-u", str(_SRC_DIR / "pro_runner.py"), "--topic", topic]
+    if pro_cost_path is not None:
+        pro_cmd.extend(["--cost-output", str(pro_cost_path)])
+
     con_cmd = [sys.executable, "-u", str(_SRC_DIR / "con_runner.py"), "--topic", topic]
+    if con_cost_path is not None:
+        con_cmd.extend(["--cost-output", str(con_cost_path)])
+
     judge_cmd = [sys.executable, "-u", str(_SRC_DIR / "judge_runner.py")]
     if judge_checkpoint_path is not None:
         judge_cmd.extend(["--checkpoint", str(judge_checkpoint_path)])
+    if judge_cost_path is not None:
+        judge_cmd.extend(["--cost-output", str(judge_cost_path)])
 
     return Spawners(
         spawn_pro=lambda: subprocess.Popen(pro_cmd, **pipe),

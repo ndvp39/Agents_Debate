@@ -3,6 +3,7 @@
 import contextlib
 import json
 import logging
+import os
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
@@ -10,6 +11,8 @@ from pathlib import Path
 from debate.agents.watchdog import Watchdog
 from debate.sdk.factory import Spawners, subprocess_factory
 from debate.services.orchestrator import DebateOrchestrator, DebateResult
+from debate.shared.config import ConfigManager
+from debate.shared.cost_aggregator import aggregate_costs
 from debate.shared.exceptions import InsufficientDataError
 
 _log = logging.getLogger("debate.sdk")
@@ -80,6 +83,7 @@ class DebateSDK:
         self._gatekeeper = gatekeeper
         self._result: DebateResult | None = None
         self._active_checkpoint: Path | None = None
+        self._active_cost_paths: dict[str, Path] = {}
 
     # ------------------------------------------------------------------
     # Primary action
@@ -88,8 +92,8 @@ class DebateSDK:
     def start_debate(self, topic: str, rounds: int) -> DebateResult:
         """Spawn agents, run the debate loop, and store the result.
 
-        Guarantees no orphan processes and no stale judge checkpoint files
-        outliving the debate.
+        Guarantees no orphan processes and no stale judge checkpoint / cost
+        dump files outliving the debate.
         """
         procs: list = []
         spawners: Spawners | None = None
@@ -99,7 +103,10 @@ class DebateSDK:
             # the same path to spawn_judge ensures a watchdog-restarted judge
             # reloads the accumulated state.
             self._active_checkpoint = self._allocate_judge_checkpoint()
-            factory_result = self._call_factory(topic, rounds, self._active_checkpoint)
+            self._active_cost_paths = self._allocate_cost_paths()
+            factory_result = self._call_factory(
+                topic, rounds, self._active_checkpoint, self._active_cost_paths,
+            )
 
             if isinstance(factory_result, Spawners):
                 spawners = factory_result
@@ -112,6 +119,8 @@ class DebateSDK:
                     topic, rounds,
                     pro_proc=pro_proc, con_proc=con_proc, judge_proc=judge_proc,
                 )
+
+            self._populate_cost_summary()
         except Exception:
             for p in procs:
                 with contextlib.suppress(Exception):
@@ -120,6 +129,7 @@ class DebateSDK:
             raise
         finally:
             self._cleanup_checkpoint()
+            self._cleanup_cost_paths()
         return self._result
 
     # ------------------------------------------------------------------
@@ -137,7 +147,12 @@ class DebateSDK:
         return self._result.verdict
 
     def get_cost_summary(self) -> dict:
-        """Return token cost breakdown (empty dict before first debate)."""
+        """Return token + USD cost breakdown for the most recent debate.
+
+        Empty dict before the first debate, or when all three agents made zero
+        gated API calls (a configuration error or an entirely-failed run).
+        Populated by `_populate_cost_summary` from per-agent gatekeeper dumps.
+        """
         if self._result is None:
             return {}
         return self._result.cost_summary
@@ -152,13 +167,26 @@ class DebateSDK:
     # Internal
     # ------------------------------------------------------------------
 
-    def _call_factory(self, topic: str, rounds: int, checkpoint: Path):
-        """Call the configured factory, passing the judge checkpoint kwarg when
-        the factory accepts it (the real subprocess_factory does; test mocks may not)."""
+    def _call_factory(
+        self,
+        topic: str,
+        rounds: int,
+        checkpoint: Path,
+        cost_paths: dict[str, Path],
+    ):
+        """Call the configured factory, passing the judge checkpoint + per-agent
+        cost paths when the factory accepts them (the real subprocess_factory
+        does; test mocks may use a narrower signature)."""
+        kwargs = {
+            "judge_checkpoint_path": checkpoint,
+            "pro_cost_path": cost_paths.get("pro"),
+            "con_cost_path": cost_paths.get("con"),
+            "judge_cost_path": cost_paths.get("judge"),
+        }
         if self._process_factory is subprocess_factory:
-            return self._process_factory(topic, rounds, judge_checkpoint_path=checkpoint)
+            return self._process_factory(topic, rounds, **kwargs)
         try:
-            return self._process_factory(topic, rounds, judge_checkpoint_path=checkpoint)
+            return self._process_factory(topic, rounds, **kwargs)
         except TypeError:
             return self._process_factory(topic, rounds)
 
@@ -168,9 +196,17 @@ class DebateSDK:
         # Close the fd; the judge subprocess will create+write to the file.
         # Leaving it empty means JudgeAgent._load_checkpoint sees no payload
         # (treats as fresh state) until the judge writes its first turn.
-        import os
         os.close(fd)
         return Path(name)
+
+    @staticmethod
+    def _allocate_cost_paths() -> dict[str, Path]:
+        paths: dict[str, Path] = {}
+        for role in ("pro", "con", "judge"):
+            fd, name = tempfile.mkstemp(prefix=f"cost_{role}_", suffix=".json")
+            os.close(fd)
+            paths[role] = Path(name)
+        return paths
 
     def _cleanup_checkpoint(self) -> None:
         path = self._active_checkpoint
@@ -179,6 +215,40 @@ class DebateSDK:
             return
         with contextlib.suppress(OSError):
             path.unlink(missing_ok=True)
+
+    def _cleanup_cost_paths(self) -> None:
+        for path in self._active_cost_paths.values():
+            with contextlib.suppress(OSError):
+                path.unlink(missing_ok=True)
+        self._active_cost_paths = {}
+
+    def _populate_cost_summary(self) -> None:
+        """Read per-agent gatekeeper cost dumps and store the aggregate on the result."""
+        if self._result is None:
+            return
+        try:
+            setup = ConfigManager(
+                config_dir=str(Path(__file__).resolve().parents[3] / "config"),
+            ).get_setup()
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("sdk: could not load setup.json for cost rates (%s)", exc)
+            setup = {}
+        summary = aggregate_costs(
+            setup,
+            pro_cost_path=self._active_cost_paths.get("pro"),
+            con_cost_path=self._active_cost_paths.get("con"),
+            judge_cost_path=self._active_cost_paths.get("judge"),
+        )
+        if summary:
+            self._result.cost_summary = summary
+            _log.info(
+                "sdk: debate cost — calls=%d tokens=%d (%d in / %d out) est_usd=$%.6f",
+                summary["total_calls"],
+                summary["total_tokens"],
+                summary["total_input_tokens"],
+                summary["total_output_tokens"],
+                summary["estimated_cost_usd"],
+            )
 
     def _require_result(self) -> None:
         if self._result is None:

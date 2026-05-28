@@ -86,6 +86,33 @@ def test_queue_status_initially_zero(mock_config):
     assert gk.get_queue_status()["queue_depth"] == 0
 
 
+def test_record_tokens_adds_tokens_without_incrementing_calls(mock_config):
+    gk = ApiGatekeeper(mock_config)
+    gk.execute(lambda: None)  # one call, no tokens via kwargs
+    gk.record_tokens(150, 75)  # post-hoc real tokens
+    summary = gk.get_cost_summary()
+    assert summary["total_calls"] == 1  # NOT 2 — record_tokens must not bump
+    assert summary["total_input_tokens"] == 150
+    assert summary["total_output_tokens"] == 75
+
+
+def test_cost_dump_path_writes_json_after_each_call(mock_config, tmp_path):
+    import json
+    dump_path = tmp_path / "cost.json"
+    gk = ApiGatekeeper(mock_config, cost_dump_path=dump_path)
+    gk.execute(lambda: None)
+    assert dump_path.is_file()
+    payload = json.loads(dump_path.read_text(encoding="utf-8"))
+    assert payload["total_calls"] == 1
+    # Second call updates the same file atomically.
+    gk.execute(lambda: None)
+    gk.record_tokens(50, 25)
+    payload = json.loads(dump_path.read_text(encoding="utf-8"))
+    assert payload["total_calls"] == 2
+    assert payload["total_input_tokens"] == 50
+    assert payload["total_output_tokens"] == 25
+
+
 def test_backpressure_when_queue_full(mock_config):
     mock_config.get_rate_limits.return_value = {
         "version": "1.00",

@@ -121,6 +121,50 @@ def test_make_debater_llm_gemini_calls_api():
 # make_judge_evaluate_llm
 # ---------------------------------------------------------------------------
 
+def test_debater_llm_routes_through_gatekeeper_when_provided():
+    """When a gatekeeper is supplied, every API call goes through `gatekeeper.execute(...)`
+    and the response's usage info is recorded — no bypass possible."""
+    mock_client = MagicMock()
+    fake_response = MagicMock()
+    fake_response.content = [MagicMock(text="argument body")]
+    fake_response.usage.input_tokens = 123
+    fake_response.usage.output_tokens = 45
+    mock_client.messages.create.return_value = fake_response
+
+    gk = MagicMock()
+    gk.execute.side_effect = lambda fn: fn()  # pass-through so the real client_call runs
+
+    with patch("anthropic.Anthropic", return_value=mock_client):
+        llm = make_debater_llm(_setup("anthropic"), gatekeeper=gk)
+    result = llm("prompt text")
+
+    assert result == "argument body"
+    gk.execute.assert_called_once()  # gate was used
+    gk.record_tokens.assert_called_once_with(123, 45)  # real usage forwarded
+    mock_client.messages.create.assert_called_once()  # client called exactly once via the gate
+
+
+def test_judge_evaluate_llm_routes_through_gatekeeper():
+    mock_client = MagicMock()
+    fake_response = MagicMock()
+    fake_response.content = [MagicMock(
+        text='{"logical_consistency": 0.8, "citation_strength": 0.7, "rhetoric_quality": 0.9}'
+    )]
+    fake_response.usage.input_tokens = 200
+    fake_response.usage.output_tokens = 50
+    mock_client.messages.create.return_value = fake_response
+
+    gk = MagicMock()
+    gk.execute.side_effect = lambda fn: fn()
+
+    with patch("anthropic.Anthropic", return_value=mock_client):
+        evaluate = make_judge_evaluate_llm(_setup("anthropic"), gatekeeper=gk)
+    out = evaluate("scoring prompt")
+    assert out["logical_consistency"] == pytest.approx(0.8)
+    gk.execute.assert_called_once()
+    gk.record_tokens.assert_called_once_with(200, 50)
+
+
 def test_make_judge_evaluate_llm_anthropic_returns_dict():
     mock_client = MagicMock()
     mock_client.messages.create.return_value.content = [

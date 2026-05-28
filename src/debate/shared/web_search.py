@@ -5,13 +5,18 @@ The consumer contract is intentionally narrow:
 each item being a single, human-readable citation string (used verbatim by
 the `synthesize_evidence` skill, which joins them with "; ").
 
-This module currently exposes a Tavily-backed implementation. Future providers
-(or a gatekeeper wrapper) plug in by satisfying the same callable shape.
+This module currently exposes a Tavily-backed implementation. When an
+`ApiGatekeeper` is supplied, the network call is routed through it so the
+Tavily web-search rate limits from `config/rate_limits.json` (service
+"web_search") are enforced and call counts are tracked. No token cost — Tavily
+doesn't bill per token.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
+
+from debate.shared.gatekeeper import ApiGatekeeper
 
 # Match WebSearchTool.MAX_RESULTS — no point fetching more than the tool will keep.
 _MAX_RESULTS = 3
@@ -22,12 +27,18 @@ _MAX_RESULTS = 3
 _EXCLUDED_DOMAINS = ["facebook.com", "quora.com", "reddit.com", "pinterest.com"]
 
 
-def make_tavily_search(api_key: str) -> Callable[[str], list[str]]:
+def make_tavily_search(
+    api_key: str,
+    gatekeeper: ApiGatekeeper | None = None,
+) -> Callable[[str], list[str]]:
     """Return a search callable backed by Tavily's REST API.
 
     The returned function maps `query: str` → `list[str]` where each string is
-    `"<title> — <url>"`. Empty queries short-circuit to `[]`. Network or
-    serialization failures propagate; `WebSearchTool` already isolates them.
+    `"<title> — <url>"`. Empty queries short-circuit to `[]`. When `gatekeeper`
+    is provided, the actual HTTP call goes through `gatekeeper.execute(...)`
+    so web-search rate limits (rate_limits.json service "web_search") are
+    enforced and call counts accumulate. Network or serialization failures
+    propagate; `WebSearchTool` already isolates them.
     """
     if not api_key:
         raise ValueError("Tavily API key must be a non-empty string")
@@ -41,12 +52,17 @@ def make_tavily_search(api_key: str) -> Callable[[str], list[str]]:
     def search(query: str) -> list[str]:
         if not query or not query.strip():
             return []
-        response = client.search(
-            query=query,
-            max_results=_MAX_RESULTS,
-            search_depth="advanced",
-            exclude_domains=_EXCLUDED_DOMAINS,
-        )
+        def _do():
+            return client.search(
+                query=query,
+                max_results=_MAX_RESULTS,
+                search_depth="advanced",
+                exclude_domains=_EXCLUDED_DOMAINS,
+            )
+        if gatekeeper is None:
+            response = _do()
+        else:
+            response = gatekeeper.execute(_do)
         return _format_results(response)
 
     return search

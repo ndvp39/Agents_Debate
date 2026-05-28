@@ -36,9 +36,9 @@
       "input_per_million_tokens": 3.0,
       "output_per_million_tokens": 15.0
     },
-    "gemini-2.0-flash": {
-      "input_per_million_tokens": 0.075,
-      "output_per_million_tokens": 0.30
+    "gemini-3.1-flash-lite": {
+      "input_per_million_tokens": 0.25,
+      "output_per_million_tokens": 1.50
     }
   },
   "sdk": {
