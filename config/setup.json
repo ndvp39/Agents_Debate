@@ -3,7 +3,7 @@
   "debate": {
     "default_rounds": 10,
     "language": "en",
-    "timeout_seconds": 120,
+    "timeout_seconds": 90,
     "max_search_queries_per_turn": 3,
     "anti_sycophancy_phrases": [
       "good point", "i agree", "that's correct", "you're right",

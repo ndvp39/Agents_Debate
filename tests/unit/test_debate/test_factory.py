@@ -1,12 +1,9 @@
-"""Tests for debate.sdk.factory — subprocess_factory spawns the three agent processes."""
+"""Tests for debate.sdk.factory — subprocess_factory builds per-agent spawners."""
 
 import subprocess
-from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
-
-from debate.sdk.factory import subprocess_factory, _SRC_DIR
+from debate.sdk.factory import Spawners, _SRC_DIR, subprocess_factory
 
 
 # ---------------------------------------------------------------------------
@@ -22,75 +19,97 @@ def test_src_dir_points_to_src():
 # subprocess_factory()
 # ---------------------------------------------------------------------------
 
-def _make_popen_mock():
-    mock = MagicMock()
-    mock.stdin = MagicMock()
-    mock.stdout = MagicMock()
-    return mock
+def _popen_mock():
+    m = MagicMock()
+    m.stdin = MagicMock()
+    m.stdout = MagicMock()
+    return m
 
 
-def test_factory_returns_three_processes():
+def test_factory_returns_spawners_dataclass():
+    spawners = subprocess_factory("AI ethics", 2)
+    assert isinstance(spawners, Spawners)
+    assert callable(spawners.spawn_pro)
+    assert callable(spawners.spawn_con)
+    assert callable(spawners.spawn_judge)
+
+
+def test_each_spawner_spawns_one_popen():
     with patch("debate.sdk.factory.subprocess.Popen") as mock_popen:
-        procs = [_make_popen_mock() for _ in range(3)]
-        mock_popen.side_effect = procs
-
-        pro, con, judge = subprocess_factory("AI ethics", 2)
-
-        assert pro is procs[0]
-        assert con is procs[1]
-        assert judge is procs[2]
-
-
-def test_factory_spawns_three_popen_calls():
-    with patch("debate.sdk.factory.subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _make_popen_mock()
-        subprocess_factory("AI ethics", 2)
+        mock_popen.side_effect = [_popen_mock(), _popen_mock(), _popen_mock()]
+        spawners = subprocess_factory("AI ethics", 2)
+        # Lazy — no Popen calls until spawners are invoked.
+        assert mock_popen.call_count == 0
+        spawners.spawn_pro()
+        spawners.spawn_con()
+        spawners.spawn_judge()
         assert mock_popen.call_count == 3
 
 
-def test_factory_passes_stdin_stdout_pipe():
+def test_spawners_pass_stdin_stdout_pipe():
     with patch("debate.sdk.factory.subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _make_popen_mock()
-        subprocess_factory("Topic", 3)
-
+        mock_popen.side_effect = [_popen_mock(), _popen_mock(), _popen_mock()]
+        spawners = subprocess_factory("Topic", 3)
+        spawners.spawn_pro()
+        spawners.spawn_con()
+        spawners.spawn_judge()
         for c in mock_popen.call_args_list:
             kwargs = c.kwargs
             assert kwargs["stdin"] == subprocess.PIPE
             assert kwargs["stdout"] == subprocess.PIPE
 
 
-def test_factory_passes_topic_to_debaters():
+def test_spawners_pass_topic_to_debaters():
     topic = "Climate change policy"
     with patch("debate.sdk.factory.subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _make_popen_mock()
-        subprocess_factory(topic, 2)
-
+        mock_popen.side_effect = [_popen_mock(), _popen_mock(), _popen_mock()]
+        spawners = subprocess_factory(topic, 2)
+        spawners.spawn_pro()
+        spawners.spawn_con()
+        spawners.spawn_judge()
         pro_args = mock_popen.call_args_list[0].args[0]
         con_args = mock_popen.call_args_list[1].args[0]
-
         assert topic in pro_args
         assert topic in con_args
 
 
-def test_factory_uses_unbuffered_flag():
+def test_spawners_use_unbuffered_flag():
     with patch("debate.sdk.factory.subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _make_popen_mock()
-        subprocess_factory("Topic", 2)
-
+        mock_popen.side_effect = [_popen_mock(), _popen_mock(), _popen_mock()]
+        spawners = subprocess_factory("Topic", 2)
+        spawners.spawn_pro()
+        spawners.spawn_con()
+        spawners.spawn_judge()
         for c in mock_popen.call_args_list:
             cmd = c.args[0]
             assert "-u" in cmd
 
 
-def test_factory_uses_correct_runner_scripts():
+def test_spawners_use_correct_runner_scripts():
     with patch("debate.sdk.factory.subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _make_popen_mock()
-        subprocess_factory("Topic", 2)
-
+        mock_popen.side_effect = [_popen_mock(), _popen_mock(), _popen_mock()]
+        spawners = subprocess_factory("Topic", 2)
+        spawners.spawn_pro()
+        spawners.spawn_con()
+        spawners.spawn_judge()
         pro_cmd = mock_popen.call_args_list[0].args[0]
         con_cmd = mock_popen.call_args_list[1].args[0]
         judge_cmd = mock_popen.call_args_list[2].args[0]
-
         assert any("pro_runner" in str(a) for a in pro_cmd)
         assert any("con_runner" in str(a) for a in con_cmd)
         assert any("judge_runner" in str(a) for a in judge_cmd)
+
+
+def test_judge_spawner_threads_checkpoint_path_into_argv():
+    from pathlib import Path
+    cp = Path("/tmp/test_judge_checkpoint.json")
+    with patch("debate.sdk.factory.subprocess.Popen") as mock_popen:
+        mock_popen.side_effect = [_popen_mock(), _popen_mock(), _popen_mock()]
+        spawners = subprocess_factory("Topic", 2, judge_checkpoint_path=cp)
+        spawners.spawn_pro()
+        spawners.spawn_con()
+        spawners.spawn_judge()
+        judge_cmd = mock_popen.call_args_list[2].args[0]
+        assert "--checkpoint" in judge_cmd
+        idx = judge_cmd.index("--checkpoint")
+        assert judge_cmd[idx + 1] == str(cp)

@@ -58,7 +58,11 @@ class BaseDebater(BaseAgent):
         # orchestrator's initial round-1 routing — round-1 takes the
         # craft_opening branch and never reads this value.
         self._last_opponent_arg = routing_message.get("previous_argument", "")
-        current_round = self._round + 1
+        # Sync round counter from the routing message when present so a
+        # watchdog-restarted debater resumes on the correct round instead of
+        # restarting at round 1 (which would mis-fire craft_opening mid-debate).
+        rn = int(routing_message.get("round_number", 0) or 0)
+        current_round = rn if rn > 0 else self._round + 1
         result = self._run_pipeline(current_round, judge_feedback)
         self._round = current_round
         # ArgumentMessage rejects empty citations lists, so we still need at

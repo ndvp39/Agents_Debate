@@ -1,11 +1,21 @@
 """Non-interactive runner — executes one full debate, writes live progress, saves results."""
 
 import json
+import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 
 from generate_html import generate_html
+
+# Surface watchdog + orchestrator INFO/WARNING lines so self-repair events
+# (timer armed, timeout fired, restart, re-send) are visible during the run.
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] %(levelname)-7s %(name)s | %(message)s",
+    datefmt="%H:%M:%S",
+    stream=sys.stderr,
+)
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
@@ -33,8 +43,8 @@ def _log(msg: str) -> None:
 class _TrackedChannel(IPCChannel):
     """IPCChannel subclass that writes a progress line after every received message."""
 
-    def receive(self, proc) -> dict:
-        msg = super().receive(proc)
+    def receive(self, proc, timeout: float = 120.0) -> dict:
+        msg = super().receive(proc, timeout=timeout)
         mt = msg.get("message_type", "?")
         if mt == "argument":
             agent = msg.get("agent_id", "?")

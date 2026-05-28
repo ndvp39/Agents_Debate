@@ -20,6 +20,7 @@ class RoutingMessage:
     judge_feedback: str
     prompt_for_next: str
     previous_argument: str = ""
+    round_number: int = 0
     message_type: str = field(default=MessageType.ROUTING)
 
     def __post_init__(self) -> None:
@@ -39,6 +40,7 @@ class RoutingMessage:
                 judge_feedback=data.get("judge_feedback", ""),
                 prompt_for_next=data["prompt_for_next"],
                 previous_argument=data.get("previous_argument", ""),
+                round_number=int(data.get("round_number", 0) or 0),
                 message_type=data.get("message_type", MessageType.ROUTING),
             )
         except KeyError as exc:
@@ -51,6 +53,7 @@ class RoutingMessage:
             "judge_feedback": self.judge_feedback,
             "prompt_for_next": self.prompt_for_next,
             "previous_argument": self.previous_argument,
+            "round_number": self.round_number,
         }
 
 

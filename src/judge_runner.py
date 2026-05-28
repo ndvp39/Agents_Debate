@@ -1,5 +1,6 @@
 """Subprocess entry point for the Judge agent."""
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -21,6 +22,16 @@ from debate.skills.loader import SkillLoader  # noqa: E402
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        default=None,
+        help="Path to a persistent state file. Loaded on startup so a "
+             "watchdog-restarted judge resumes with full score history.",
+    )
+    args = parser.parse_args()
+
     setup = ConfigManager(config_dir=str(_PROJECT_ROOT / "config")).get_setup()
     skills = SkillLoader(Path(__file__).resolve().parent / "debate" / "skills")
 
@@ -29,6 +40,7 @@ def main() -> None:
         route_llm=make_judge_route_llm(setup),
         verdict_llm=make_judge_verdict_llm(setup),
         skills=skills,
+        checkpoint_path=args.checkpoint,
     )
     agent.start()
 

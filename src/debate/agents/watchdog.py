@@ -1,5 +1,18 @@
-"""Watchdog — per-process threading.Timer that kills and restarts hung agents."""
+"""Watchdog — per-process threading.Timer that kills and restarts hung agents.
 
+Public API
+----------
+* `register(process, name, restart_fn)` — track an agent.
+* `start_timer(name)` / `reset_timer(name)` — arm/disarm the per-turn timer.
+* `wait_for_restart(name, timeout) -> bool` — block until the watchdog's timeout
+  fires AND `restart_fn()` completes. Returns True on restart, False on timeout
+  waiting for it. The orchestrator uses this to safely re-send the in-flight
+  message after detecting a hung process.
+* `stop()` — cancel all timers (debate end).
+* `last_error` — populated when `restart_fn` raised, so callers can surface it.
+"""
+
+import logging
 import subprocess
 import threading
 from collections.abc import Callable
@@ -7,12 +20,17 @@ from dataclasses import dataclass, field
 
 from debate.shared.exceptions import WatchdogRestartError
 
+_log = logging.getLogger("debate.watchdog")
+
 
 @dataclass
 class _AgentEntry:
     process: subprocess.Popen
     restart_fn: Callable
     timer: threading.Timer | None = field(default=None, repr=False)
+    # Signaled after a restart completes — orchestrator waits on this to know
+    # when the new Popen handle is safe to send the re-tried message to.
+    restart_event: threading.Event = field(default_factory=threading.Event, repr=False)
 
 
 class Watchdog:
@@ -43,11 +61,15 @@ class Watchdog:
         """Begin countdown for the named agent."""
         with self._lock:
             entry = self._agents[name]
+            # Each new turn starts with a fresh restart_event — a previous
+            # restart's `set()` must not leak into this turn.
+            entry.restart_event.clear()
             if entry.timer is not None:
                 entry.timer.cancel()
             timer = threading.Timer(self._timeout, self._on_timeout, args=(name,))
             timer.daemon = True
             entry.timer = timer
+        _log.info("watchdog: timer armed agent=%s timeout=%.1fs", name, self._timeout)
         timer.start()
 
     def reset_timer(self, name: str) -> None:
@@ -57,6 +79,7 @@ class Watchdog:
             if entry.timer is not None:
                 entry.timer.cancel()
                 entry.timer = None
+        _log.debug("watchdog: timer reset agent=%s", name)
 
     def stop(self) -> None:
         """Cancel all active timers — call at debate end."""
@@ -65,6 +88,18 @@ class Watchdog:
                 if entry.timer is not None:
                     entry.timer.cancel()
                     entry.timer = None
+        _log.info("watchdog: stopped")
+
+    def current_process(self, name: str) -> subprocess.Popen:
+        """Return the currently-tracked Popen handle (refreshed after restart)."""
+        with self._lock:
+            return self._agents[name].process
+
+    def wait_for_restart(self, name: str, timeout: float) -> bool:
+        """Block until a restart for `name` completes; True on success, False on timeout."""
+        with self._lock:
+            event = self._agents[name].restart_event
+        return event.wait(timeout=timeout)
 
     # ------------------------------------------------------------------
     # Internal timeout callback
@@ -75,19 +110,34 @@ class Watchdog:
             entry = self._agents.get(name)
             if entry is None:
                 return
-            entry.process.kill()
+            old_pid = getattr(entry.process, "pid", None)
+            try:
+                entry.process.kill()
+            except Exception as exc:  # noqa: BLE001
+                _log.warning("watchdog: kill raised agent=%s err=%s", name, exc)
             entry.timer = None
             restart_fn = entry.restart_fn
+        _log.warning(
+            "watchdog: timeout fired agent=%s killed_pid=%s — attempting restart", name, old_pid,
+        )
 
         try:
             new_process = restart_fn()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             with self._lock:
                 self.last_error = WatchdogRestartError(
                     f"Restart failed for {name!r}: {exc}"
                 )
+                # Signal anyway so waiters unblock and surface the error.
+                self._agents[name].restart_event.set()
+            _log.error("watchdog: restart FAILED agent=%s err=%s", name, exc)
             return
 
+        new_pid = getattr(new_process, "pid", None)
         with self._lock:
             if name in self._agents:
                 self._agents[name].process = new_process
+                self._agents[name].restart_event.set()
+        _log.warning(
+            "watchdog: restart OK agent=%s new_pid=%s (was %s)", name, new_pid, old_pid,
+        )

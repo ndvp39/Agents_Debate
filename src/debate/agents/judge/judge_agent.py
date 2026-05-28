@@ -1,12 +1,20 @@
 """JudgeAgent — moderates the debate, scores arguments, declares the verdict."""
 
+import json
+import logging
+import os
+import tempfile
 from collections.abc import Callable
+from dataclasses import asdict
+from pathlib import Path
 
 from debate.agents.base_agent import BaseAgent
 from debate.agents.judge.verdict import DeclareVerdict, PersuasionScore
 from debate.ipc.schemas import ArgumentMessage, RoutingMessage
 from debate.shared.constants import AgentID
 from debate.skills.loader import SkillLoader
+
+_log = logging.getLogger("debate.judge")
 
 
 class JudgeAgent(BaseAgent):
@@ -15,6 +23,13 @@ class JudgeAgent(BaseAgent):
     Drives the judge skill pipeline (enforce, evaluate, generate-feedback,
     compose-next-turn) through a project-local SkillLoader, then declares the
     verdict at the end of the debate.
+
+    Optional checkpointing: when `checkpoint_path` is provided, the judge
+    persists its accumulated state (scores, last arguments, last feedback,
+    round counter) atomically after every successful scoring turn. A fresh
+    judge process started with the same path reloads that state — so a
+    watchdog-triggered restart resumes with full score history rather than
+    silently producing a verdict computed from only the post-restart rounds.
     """
 
     def __init__(
@@ -25,12 +40,16 @@ class JudgeAgent(BaseAgent):
         stdin=None,
         stdout=None,
         skills: SkillLoader | None = None,
+        checkpoint_path: Path | None = None,
     ) -> None:
         super().__init__(AgentID.JUDGE, stdin, stdout, skills=skills)
         self._evaluate_llm = evaluate_llm
         self._route_llm = route_llm
         self._verdict_llm = verdict_llm
         self._verdict = DeclareVerdict()
+        self._checkpoint_path: Path | None = (
+            Path(checkpoint_path) if checkpoint_path else None
+        )
 
         self._scores: dict[str, list[PersuasionScore]] = {
             AgentID.PRO: [],
@@ -39,6 +58,8 @@ class JudgeAgent(BaseAgent):
         self._last_arguments: dict[str, str] = {}
         self._last_feedback_sent: dict[str, str] = {AgentID.PRO: "", AgentID.CON: ""}
         self._round: int = 0
+
+        self._load_checkpoint()
 
     # ------------------------------------------------------------------
     # Public methods called by the orchestrator
@@ -65,8 +86,16 @@ class JudgeAgent(BaseAgent):
         self._round += 1
 
         next_agent = AgentID.CON if msg.agent_id == AgentID.PRO else AgentID.PRO
-        routing = self._build_routing(score, next_agent, previous_argument=msg.argument)
+        # Round number for the NEXT speaker: same round when Pro just spoke (Con
+        # answers in the same round); +1 when Con just spoke (Pro opens next round).
+        next_round_number = msg.round if msg.agent_id == AgentID.PRO else msg.round + 1
+        routing = self._build_routing(
+            score, next_agent,
+            previous_argument=msg.argument,
+            round_number=next_round_number,
+        )
         self._last_feedback_sent[next_agent] = routing.judge_feedback
+        self._save_checkpoint()
         self.send(routing.to_dict())
 
     def declare_verdict(self) -> None:
@@ -110,6 +139,7 @@ class JudgeAgent(BaseAgent):
         score: PersuasionScore,
         next_agent: str,
         previous_argument: str,
+        round_number: int,
     ) -> RoutingMessage:
         previous_feedback = self._last_feedback_sent.get(next_agent, "")
         feedback_prompt = self._skills.load("generate_judge_feedback").render(
@@ -128,6 +158,7 @@ class JudgeAgent(BaseAgent):
             judge_feedback=feedback,
             prompt_for_next=prompt_for_next,
             previous_argument=previous_argument,
+            round_number=round_number,
         )
 
     # ------------------------------------------------------------------
@@ -174,6 +205,66 @@ class JudgeAgent(BaseAgent):
         return (
             f" Your previous instruction to this agent was: '{previous_feedback}'. "
             "State explicitly whether it was followed this round."
+        )
+
+    # ------------------------------------------------------------------
+    # Checkpointing — persists accumulated state across process restarts
+    # ------------------------------------------------------------------
+
+    def _save_checkpoint(self) -> None:
+        if self._checkpoint_path is None:
+            return
+        payload = {
+            "round": self._round,
+            "scores": {
+                agent: [asdict(s) for s in scores]
+                for agent, scores in self._scores.items()
+            },
+            "last_arguments": self._last_arguments,
+            "last_feedback_sent": self._last_feedback_sent,
+        }
+        path = self._checkpoint_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Atomic write: temp-in-same-dir then rename, so a crash mid-write never
+        # leaves a half-written checkpoint that would fail to reload.
+        tmp_fd, tmp_name = tempfile.mkstemp(
+            prefix=path.name + ".", suffix=".tmp", dir=str(path.parent),
+        )
+        try:
+            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
+                json.dump(payload, fh)
+            os.replace(tmp_name, path)
+        except Exception:
+            with open(os.devnull, "w") as _:
+                pass
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
+
+    def _load_checkpoint(self) -> None:
+        if self._checkpoint_path is None or not self._checkpoint_path.is_file():
+            return
+        try:
+            payload = json.loads(self._checkpoint_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            _log.warning("judge: checkpoint load failed (%s) — starting fresh", exc)
+            return
+        self._round = int(payload.get("round", 0))
+        self._last_arguments = dict(payload.get("last_arguments", {}))
+        self._last_feedback_sent = {
+            AgentID.PRO: "", AgentID.CON: "",
+            **dict(payload.get("last_feedback_sent", {})),
+        }
+        self._scores = {AgentID.PRO: [], AgentID.CON: []}
+        for agent, score_dicts in (payload.get("scores", {}) or {}).items():
+            self._scores[agent] = [
+                PersuasionScore(**sd) for sd in score_dicts
+            ]
+        _log.info(
+            "judge: checkpoint loaded round=%d pro_scores=%d con_scores=%d",
+            self._round, len(self._scores[AgentID.PRO]), len(self._scores[AgentID.CON]),
         )
 
     @staticmethod
