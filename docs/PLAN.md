@@ -1,4 +1,23 @@
 # PLAN — Architecture & Design Document
+
+> **Historical document — superseded structure noted inline.** This PLAN
+> documents the v1 design and is preserved as an Architecture Decision Record.
+> Several specifics have changed in the integration-fix phase; the most
+> important superseded items:
+>
+> - **Skills layout.** v1 located skills in `agents/debaters/skills.py` and
+>   `agents/judge/skills.py` with a Python `register_skill()` registry. v2
+>   replaces both with **SKILL.md folders under `src/debate/skills/`** loaded
+>   at runtime by `SkillLoader`. `skills.py` was deleted in `52b5134`. See
+>   `PRD_debater_skills.md` for the current model.
+> - **Judge skill names.** `RouteTurn` was split into `generate_judge_feedback`
+>   (llm_prompt) and `compose_next_turn_prompt` (deterministic) in `651a5a8`.
+> - **Watchdog / gatekeeper integration.** Both were dormant in v1; wired
+>   into the live path in `387d725` / `7ea57b3`. See PRD_watchdog §7.1 and
+>   PRD_api_gatekeeper §9.1 for the wiring history.
+>
+> All ADR-level reasoning below remains accurate. The tree/class diagrams
+> reflect the v1 implementation; refer to the current PRDs for the v2 layout.
 # AI Agent Debate Orchestration System
 **Version:** 1.02  
 **Date:** 2026-05-25  

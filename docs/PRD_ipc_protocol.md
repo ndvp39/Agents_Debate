@@ -39,7 +39,9 @@ Sent after the Judge accepts an argument and wants to pass the turn.
 | `message_type` | `str` | Yes | Always `"routing"` |
 | `target_agent` | `str` | Yes | `"Agent_Pro"` or `"Agent_Con"` |
 | `judge_feedback` | `str` | Yes | Judge's summary of the previous argument |
-| `prompt_for_next` | `str` | Yes | Instruction for the next speaker |
+| `prompt_for_next` | `str` | Yes | Instruction for the next speaker (clean handoff string — composed deterministically by the `compose_next_turn_prompt` skill) |
+| `previous_argument` | `str` | No (default `""`) | The full text of the argument just evaluated. The next debater's `analyze_opponent` / `detect_fallacies` skills consume this as their `opponent_argument` input — **this is how the father relays each argument to the other agent**. Empty on the orchestrator's initial round-1 routing (no opponent yet). Added in commit `651a5a8`. |
+| `round_number` | `int` | No (default `0`) | The round number the next speaker should use. Lets a watchdog-restarted debater resume on the correct round instead of restarting at round 1 (its fresh `_round` would otherwise be 0 and mis-fire `craft_opening`). Added in commit `387d725`. |
 
 ---
 

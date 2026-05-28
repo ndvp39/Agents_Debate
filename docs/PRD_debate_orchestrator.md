@@ -12,7 +12,7 @@ The Debate Orchestrator is the central coordination engine of the system. It is 
 
 The orchestrator implements the **Mediator design pattern**: agents never communicate directly with each other; all communication flows through the orchestrator, which forwards messages to the appropriate process. This enforces the required communication topology: `Pro → Judge → Con → Judge → Pro → ...`
 
-The orchestrator also serves as the integration point for the Watchdog — it registers each spawned process with the Watchdog and reacts to restart notifications.
+The orchestrator also serves as the integration point for the Watchdog — it registers each spawned process with the Watchdog, arms `start_timer` around every blocking `receive()`, calls `reset_timer` on success, and reacts to restart notifications. See §6 for the two restart paths.
 
 ---
 
@@ -102,6 +102,58 @@ The orchestrator also serves as the integration point for the Watchdog — it re
 - The SDK `start_debate()` MUST guard against orphan processes between factory completion and orchestrator entry — if an exception occurs before the orchestrator's own try block, the SDK kills all spawned processes.
 
 ---
+
+## 6.1 Spawners (per-agent spawn closures)
+
+The orchestrator does **not** spawn processes itself. The SDK constructs a
+`Spawners` dataclass via `subprocess_factory(topic, rounds, judge_checkpoint_path=,
+pro_cost_path=, con_cost_path=, judge_cost_path=)` containing three callables:
+`spawn_pro()`, `spawn_con()`, `spawn_judge()`. Each closure spawns one
+subprocess with the right argv (including `--checkpoint` for the judge and
+`--cost-output` per agent) and returns the new `Popen`. The orchestrator
+invokes each closure once for the initial spawn, stores the handles in
+`self._procs: dict[AgentID, Popen]`, and wraps each closure with a small
+`make_restart()` factory that also updates `self._procs[agent_id]` on respawn.
+The same closures are registered with the watchdog as `restart_fn`.
+
+## 6.2 Two restart paths
+
+The orchestrator's `_receive(agent_id, resend_message)` survives both common
+failure modes a subprocess can exhibit:
+
+1. **Watchdog kill+restart (timer expiry).** Subprocess hangs longer than
+   `timeout_seconds`. The watchdog kills it via `process.kill()` and invokes
+   `restart_fn` (which respawns and updates `self._procs`). On the orchestrator
+   side, the killed stdin/stdout closes → `receive()` raises `IPCParseError`
+   ("Empty response from process"). The orchestrator calls
+   `watchdog.wait_for_restart(agent_id, timeout=_RESTART_WAIT_SECONDS)`; on
+   `True`, picks up the new handle via `watchdog.current_process(agent_id)`,
+   re-sends the in-flight message via `_channel.send`, and loops.
+
+2. **Runner clean exit (subprocess.exit on error).** The watchdog timer never
+   fires (runner exits on its own, e.g., `_retry` raised after exhausting Gemini
+   429 retries). `wait_for_restart` returns `False`. The orchestrator probes
+   `self._procs[agent_id].poll()`; if non-`None`, calls
+   `self._restart_fns[agent_id]()` to spawn a fresh process, calls
+   `watchdog.notify_external_restart(agent_id, new_proc)` so a future timer
+   fire targets the new handle, re-sends, and loops.
+
+Both paths share a per-turn `_MAX_RESTARTS_PER_TURN = 2` budget. On budget
+exhaustion `_receive` raises a `RuntimeError` naming the agent and surfacing
+the exit code — no silent 15 s wait. Debater state is fully reconstructable
+from the next routing message's `previous_argument` + `round_number`; the
+judge persists its accumulated `_scores` / `_last_arguments` /
+`_last_feedback_sent` / `_round` to an atomic JSON checkpoint after every
+scoring turn so a restarted judge resumes with full history (see
+`PRD_judge_agent.md §3.0`).
+
+## 6.3 IPC backstop timeout
+
+`DebateOrchestrator.__init__` accepts `ipc_timeout: float = 150.0` — the
+`IPCChannel.receive(timeout=)` value that fires as a backstop in case the
+watchdog itself fails. The SDK auto-derives this as
+`max(default, watchdog_timeout + 60.0)` so the watchdog always fires first
+(`PRD_watchdog.md §7.1`).
 
 ## 7. Alternatives Considered
 

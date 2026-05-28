@@ -12,23 +12,32 @@ The API Gatekeeper is a centralized proxy layer through which **all** external A
 
 - **Cost control**: Token usage is tracked per call and accumulated across the session.
 - **Rate limiting**: Calls are metered against configured limits (requests/minute, requests/hour, concurrent max).
-- **Resilience**: Transient failures trigger automatic retries with exponential back-off.
-- **Observability**: Every call is logged with its inputs, outputs, latency, and token usage.
+- **Observability**: Every call's success increments the cost accumulator; per-agent dumps are aggregated by the SDK into `DebateResult.cost_summary`.
 - **Fairness**: When rate limits are hit, excess calls are queued (FIFO) rather than dropped.
 
-This pattern is known as the **Circuit Breaker + Queue** pattern in distributed systems, adapted here for a local multi-agent architecture.
+> **Retry note (commit `f78cc29`):** the gatekeeper does **NOT** retry the
+> `api_call`. The inner provider-aware `_retry()` in `shared/llm_retry.py`
+> already owns retry policy (Gemini `retry_in` hints, daily-quota fail-fast,
+> empty-response replay). A gatekeeper-level retry was double-retrying on
+> transient failures and — worse — re-trying fatal exceptions that the inner
+> layer correctly raised, inflating turns by 30/60/120 s. The gatekeeper now
+> calls `api_call` exactly once, records cost on success, propagates exceptions
+> immediately on failure.
+
+This pattern is a **rate-limit + FIFO queue + cost accumulator**, adapted for
+a local multi-agent architecture.
 
 ---
 
 ## 2. Responsibilities
 
 - Check rate limits before every external call.
-- Execute the call if within limits; queue it if the limit is reached.
-- Retry on transient failures (HTTP 429, 500, 502, 503, 504) with exponential back-off.
-- Log every call: timestamp, service name, token count (in/out), latency, success/failure.
+- Execute the call **exactly once** if within limits; queue it if the limit is reached.
+- Record cost on success (call count + token totals). Token totals can be supplied via the `_input_tokens`/`_output_tokens` kwargs at submit time OR added post-hoc via `record_tokens(in, out)` once the provider returns `response.usage`.
+- Optionally dump the running cost summary to a per-agent JSON file (`cost_dump_path`) after every successful call, so a parent process can aggregate per-subprocess costs without IPC.
+- Propagate any exception from `api_call` immediately — **no internal retry**.
 - Drain the queue as rate windows reset.
-- Provide a `get_queue_status()` method for monitoring.
-- Provide a `get_cost_summary()` method returning accumulated token costs.
+- Provide `get_queue_status()` and `get_cost_summary()` accessors.
 
 ---
 
@@ -118,13 +127,21 @@ When a rate limit is reached:
 
 ---
 
-## 6. Retry Logic
+## 6. Retry Policy (delegated)
 
-On transient failure (HTTP 429, 500, 502, 503, 504 or equivalent SDK exceptions):
-- Wait `retry_after_seconds * (2 ^ attempt)` (exponential back-off).
-- Retry up to `max_retries` times.
-- On exhaustion of retries: raise `GatekeeperMaxRetriesError`.
-- Non-transient errors (400, 401, 403): do not retry; raise immediately.
+The gatekeeper does **NOT** retry. Retry is handled by `shared/llm_retry.py`'s
+`_retry(fn, label)`, which the LLM closures (`make_anthropic_*`, `make_gemini_*`)
+wrap around the provider call before passing it into `gatekeeper.execute(...)`:
+
+- Provider-suggested delay on transient 429s (parses `retry_in` / `retryDelay`).
+- Fail-fast on `Daily API quota exhausted` (raises `RuntimeError` immediately).
+- Empty/None response replay (`_EMPTY_MAX_RETRIES = 3`, 2 s delay).
+
+`max_retries` / `retry_after_seconds` keys in `rate_limits.json` are read for
+backward-compat but no longer used by the gatekeeper. The historical
+`GatekeeperMaxRetriesError` exception is retained in `shared/exceptions.py`
+for compatibility with any external code that imports it; the gatekeeper
+itself does not raise it.
 
 ---
 
@@ -167,13 +184,31 @@ Every call is logged via `DebateLogger`:
 
 ---
 
+## 9.1 Wiring history
+
+The `ApiGatekeeper` class was implemented and unit-tested before live wiring,
+but until commit `7ea57b3` it was a **dormant component** — every LLM call went
+straight to the provider SDK, bypassing the gate, and `DebateSDK.get_cost_summary()`
+returned `{}` because the gatekeeper was always `None`. The wiring milestone
+introduced per-subprocess gatekeepers (each runner constructs one
+`ApiGatekeeper(service="llm")` for the LLM and, for debaters, one
+`ApiGatekeeper(service="web_search")` for Tavily; see `pro_runner.py`,
+`con_runner.py`, `judge_runner.py`). LLM and Tavily closures (`shared/llm_*`,
+`shared/web_search.py`) wrap every provider call inside `gatekeeper.execute(...)`;
+a grep of `src/` confirms no `client.messages.create` / `client.models.generate_content`
+/ `client.search` call site exists outside a `_do()` closure routed through the
+gate. Commit `f78cc29` removed the gatekeeper-level retry that was inflating
+turns (see §6 retry note).
+
+---
+
 ## 10. Constraints
 
 - **Every** external API call (LLM, web-search) MUST use `gatekeeper.execute()`.
 - Rate limits MUST be loaded from `config/rate_limits.json` — never hardcoded.
 - Queue MUST be FIFO — no priority reordering.
 - On queue full: raise `BackpressureError` — do NOT silently drop the call.
-- The Gatekeeper is a **singleton** within each process — one instance shared across all tools and skills.
+- One gatekeeper instance per service per subprocess; **not** a global singleton (the multi-process architecture rules that out). Cost is aggregated by the SDK at debate end via `cost_aggregator.aggregate_costs()`.
 
 ---
 

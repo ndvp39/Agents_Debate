@@ -33,7 +33,7 @@ class Watchdog:
     """Monitors agent processes and restarts them on timeout."""
 
     def __init__(self, timeout_seconds: float):
-        """Load timeout from config; initialize internal state."""
+        """Initialize with the per-agent timeout (loaded from config by the SDK)."""
 
     def register(self, process: subprocess.Popen, name: str, restart_fn: Callable) -> None:
         """Register an agent process for monitoring."""
@@ -42,11 +42,27 @@ class Watchdog:
         """Begin countdown for the named agent. Called before waiting for a response."""
 
     def reset_timer(self, name: str) -> None:
-        """Reset the countdown. Called when a valid response is received."""
+        """Cancel the countdown — valid response received."""
 
     def stop(self) -> None:
-        """Stop all timers and clean up. Called at debate end."""
+        """Cancel all active timers and clean up. Called at debate end."""
+
+    def current_process(self, name: str) -> subprocess.Popen:
+        """Return the currently-tracked Popen handle (refreshed after restart)."""
+
+    def wait_for_restart(self, name: str, timeout: float) -> bool:
+        """Block until restart_fn for `name` completes; True on success, False on timeout.
+        Used by the orchestrator after a receive failure to confirm the watchdog
+        kill+respawn cycle finished before re-sending the in-flight message."""
+
+    def notify_external_restart(self, name: str, new_process: subprocess.Popen) -> None:
+        """Update the tracked process for an externally-restarted agent (used when
+        the orchestrator detects a clean runner exit and respawns via the spawn
+        closure rather than via timer expiry — see PRD_debate_orchestrator §6.2)."""
 ```
+
+`last_error: WatchdogRestartError | None` — populated when `restart_fn` raised,
+so the orchestrator can surface a clear failure rather than waiting forever.
 
 ---
 
@@ -104,9 +120,34 @@ The Watchdog calls `restart_fn()` and updates its internal process reference.
 
 ---
 
+## 7.1 Wiring history
+
+The `Watchdog` class was implemented and unit-tested before live wiring, but
+through several milestones it was a **dormant component** — `DebateSDK` did not
+accept it, `DebateOrchestrator._watchdog` was always `None`, and the timers were
+never armed in production. Commit `387d725` (feat: watchdog) wired it into the
+live path: SDK now constructs and injects the Watchdog (with per-provider
+`timeout_seconds` from `config/setup.json`), the orchestrator arms `start_timer`
+around every blocking `receive()` and `reset_timer` on success, and registers
+per-agent `restart_fn` closures backed by the `Spawners` factory (see
+`PRD_debate_orchestrator`). An integration test (`tests/integration/test_watchdog_recovery.py`)
+spawns a deliberately-hung subprocess and asserts the kill + respawn + re-send
+cycle completes against a fresh process.
+
+`notify_external_restart` was added in the same milestone to support the
+**runner clean-exit recovery path** (commit `f78cc29`): when a subprocess exits
+on its own with an error code (e.g., gatekeeper raised after exhausting retries
+in `_retry`), the watchdog timer never fires; the orchestrator detects the dead
+process via `Popen.poll()` and manually invokes the registered `restart_fn`,
+notifying the watchdog so a future timer fire targets the new handle.
+
+---
+
 ## 8. Constraints
 
 - Timeout value MUST be loaded from `config/setup.json` — never hardcoded.
+  Default precedence: explicit SDK arg > `provider.<active>.timeout_seconds` >
+  `debate.timeout_seconds` > hardcoded 90 s fallback.
 - The Watchdog MUST monitor all three agent processes independently.
 - On restart, the Watchdog MUST log the event before notifying the orchestrator.
 - `stop()` MUST cancel all active timers to avoid firing after debate ends.

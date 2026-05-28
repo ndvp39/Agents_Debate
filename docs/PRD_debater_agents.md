@@ -2,7 +2,7 @@
 **Version:** 1.01  
 **Date:** 2026-05-23  
 **Author:** Nadav Goldin  
-**Files:** `src/debate/agents/debaters/base_debater.py`, `pro_agent.py`, `con_agent.py`, `web_search_tool.py`, `skills.py`
+**Files:** `src/debate/agents/debaters/base_debater.py`, `pro_agent.py`, `con_agent.py`, `web_search_tool.py`, plus the SKILL.md folders under `src/debate/skills/debater/` (loaded via `SkillLoader` — see `PRD_debater_skills.md`)
 
 ---
 
@@ -12,7 +12,7 @@ The Pro and Con agents are the two debating participants. Each is assigned a fix
 
 The central technical challenge is **LLM sycophancy**: the natural tendency of language models to agree with, compliment, or soften their position in response to a persuasive opposing argument. The debater architecture addresses this with an **Anti-Pleasing Directive** embedded at the prompt level and enforced at the message level by the Judge's `Enforce_Debate_Mechanics` skill.
 
-Both agents inherit from `BaseDebater`, which itself inherits from `BaseAgent`. Each turn, `BaseDebater` runs a **7-skill pipeline** (`skills.py`) that mirrors how a world-class human debater thinks: analyze the opponent, detect fallacies, choose a strategy, build a counter-argument, synthesize evidence, and apply rhetoric. The only difference between `ProAgent` and `ConAgent` is the assigned stance constant.
+Both agents inherit from `BaseDebater`, which itself inherits from `BaseAgent`. Each turn, `BaseDebater._run_pipeline()` invokes a **7-skill pipeline** that mirrors how a world-class human debater thinks: analyze the opponent, detect fallacies, choose a strategy, build a counter-argument, synthesize evidence, and apply rhetoric. Each skill is a SKILL.md folder under `src/debate/skills/debater/` loaded by the injected `SkillLoader` (Anthropic Skill protocol — see `PRD_debater_skills.md`). The only difference between `ProAgent` and `ConAgent` is the assigned stance constant.
 
 Both agents are equipped with a `WebSearchTool` — the Judge is not. Web search results feed directly into the `SynthesizeEvidence` skill.
 
@@ -110,8 +110,15 @@ Each skill in the pipeline receives the output of the previous skill as part of 
 ### Input (per turn)
 | Field | Source | Description |
 |-------|--------|-------------|
-| `routing_message` | Judge via Orchestrator | Contains `prompt_for_next` and `judge_feedback` |
-| `previous_opponent_argument` | Stored in state | The opponent's last argument (for direct rebuttal) |
+| `routing_message` | Judge via Orchestrator | Contains `prompt_for_next`, `judge_feedback`, **`previous_argument`** (the opponent's actual argument text — fed into `analyze_opponent` / `detect_fallacies`), and **`round_number`** (the round the next speaker should use — lets a respawned debater resume on the correct round). |
+
+`BaseDebater.respond` reads `previous_argument` from the routing dict into
+`self._last_opponent_arg` (previously this field was sourced from
+`prompt_for_next` — a turn-handoff string — which meant `analyze_opponent` was
+operating on the wrong input; fixed in commit `651a5a8`). It reads
+`round_number` and uses it as `current_round` when non-zero, falling back to
+`self._round + 1` otherwise — so a watchdog-restarted debater whose fresh
+`_round` is 0 still picks up the correct round number (fixed in `387d725`).
 
 ### Output (per turn)
 | Field | Type | Description |
@@ -136,10 +143,10 @@ Each skill in the pipeline receives the output of the previous skill as part of 
 
 - Debaters MUST NOT communicate directly with each other — only through the Judge/Orchestrator.
 - Anti-sycophancy directive MUST be injected on every single LLM call — never omitted.
-- All LLM calls and web-search calls MUST go through `ApiGatekeeper`.
-- All 7 debater skills MUST be defined locally in `agents/debaters/skills.py` — not globally.
-- `CraftOpening` MUST only run on round 1; raises `SkillNotApplicableError` otherwise.
-- `ApplyRhetoric` MUST always be the final skill in the pipeline — never reordered.
+- All LLM calls and web-search calls MUST go through `ApiGatekeeper` (per-subprocess instances: one `service="llm"` and one `service="web_search"`).
+- All 7 debater skills are SKILL.md folders under `src/debate/skills/debater/` — loaded at runtime by `SkillLoader`. (`skills.py` was deleted in `52b5134`.)
+- `craft_opening` MUST only run on round 1; the round-1 guard lives in `BaseDebater._run_pipeline` (the previous `SkillNotApplicableError` mechanism was removed when the per-class guard moved into the agent in `ac3d46b`).
+- `apply_rhetoric` MUST always be the final skill in the pipeline — never reordered.
 - `citations` list in the output message MUST contain at least 1 entry; if web search fails, the debater must note the attempted search.
 - `ProAgent` and `ConAgent` MUST NOT duplicate any logic — all shared code lives in `BaseDebater`.
 
@@ -164,10 +171,10 @@ Each skill in the pipeline receives the output of the previous skill as part of 
 - [x] All LLM and web-search calls pass through the Gatekeeper (verifiable via Gatekeeper logs).
 - [x] If web search fails, the debater still returns a valid `argument` message.
 - [x] `ProAgent` and `ConAgent` share zero duplicated logic (all in `BaseDebater`).
-- [x] On round 1, only `CraftOpening → SynthesizeEvidence → ApplyRhetoric` run.
+- [x] On round 1, only `craft_opening → synthesize_evidence → apply_rhetoric` run.
 - [x] On round 2+, all 6 remaining skills run in the correct order.
-- [x] `CraftOpening` called on round 2+ raises `SkillNotApplicableError`.
-- [x] `ApplyRhetoric` is always the last skill executed before message construction.
+- [x] `craft_opening` is only invoked on round 1 (the agent's `if round_number == 1:` branch is the guard; no exception path needed).
+- [x] `apply_rhetoric` is always the last skill executed before message construction.
 
 ---
 
@@ -177,7 +184,7 @@ Each skill in the pipeline receives the output of the previous skill as part of 
 |----------|-----------------|
 | Pro receives routing message on round 1 | `CraftOpening` runs; `AnalyzeOpponent` skipped; valid `argument` JSON returned |
 | Con receives routing message on round 3 | Full 6-skill pipeline runs; valid `argument` JSON with FOR/AGAINST stance returned |
-| `CraftOpening` called on round 2 | `SkillNotApplicableError` raised |
+| `_run_pipeline(round_number=2)` invoked with no opponent argument | round-2+ branch runs; `craft_opening` not invoked |
 | Anti-sycophancy prompt is removed from config | `ValueError` raised at prompt build time |
 | Web search API returns empty results | `SynthesizeEvidence` returns empty citations; argument still returned with note |
 | Web search API raises exception | Argument returned without crash; exception logged via `DebateLogger` |

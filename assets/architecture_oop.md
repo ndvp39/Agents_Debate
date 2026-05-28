@@ -14,12 +14,23 @@ with their dependency arrows.
 classDiagram
     class BaseAgent {
         +str agent_id
-        +dict _skills
+        +SkillLoader _skills
         +IO _stdin
         +IO _stdout
-        +register_skill(name, fn) None
         +send(message) None
         +receive() Message
+    }
+
+    class SkillLoader {
+        +Path _root
+        +dict _cache
+        +load(name) Skill
+    }
+    class Skill {
+        +str name
+        +str type
+        +render(**kwargs) str
+        +run(*args) Any
     }
 
     class BaseDebater {
@@ -56,9 +67,20 @@ classDiagram
 
     class Watchdog {
         +float _timeout
-        +dict _processes
-        +register(agent_id, process) None
+        +dict _agents
+        +register(process, name, restart_fn) None
+        +start_timer(name) None
+        +reset_timer(name) None
+        +current_process(name) Popen
+        +wait_for_restart(name, timeout) bool
+        +notify_external_restart(name, new_proc) None
         +stop() None
+    }
+
+    class Spawners {
+        +Callable spawn_pro
+        +Callable spawn_con
+        +Callable spawn_judge
     }
 
     class DebateOrchestrator {
@@ -83,10 +105,18 @@ classDiagram
     }
 
     class ApiGatekeeper {
-        +Queue _queue
-        +float _rate_limit
-        +call(skill_fn, prompt) str
-        +evaluate(prompt) str
+        +int _rpm
+        +int _rph
+        +deque _queue
+        +CostAccumulator _cost
+        +Path _cost_dump_path
+        +execute(api_call) Any
+        +record_tokens(in, out) None
+        +get_cost_summary() dict
+    }
+
+    class CostAggregator {
+        +aggregate_costs(setup, pro_path, con_path, judge_path) dict
     }
 
     class LLMProvider {
@@ -111,14 +141,22 @@ classDiagram
     BaseAgent <|-- JudgeAgent : extends
 
     %% Composition
-    DebateOrchestrator *-- Watchdog : owns
+    DebateSDK *-- Watchdog : owns
+    DebateSDK *-- Spawners : builds via factory
     DebateOrchestrator *-- IPCChannel : owns
+    BaseAgent *-- SkillLoader : injected
+    SkillLoader o-- Skill : caches
 
     %% Dependencies / usage
     BaseDebater ..> WebSearchTool : uses
-    BaseDebater ..> ApiGatekeeper : calls
-    JudgeAgent ..> ApiGatekeeper : calls
+    BaseDebater ..> SkillLoader : loads skills
+    JudgeAgent ..> SkillLoader : loads skills
+    BaseDebater ..> ApiGatekeeper : calls go through
+    JudgeAgent ..> ApiGatekeeper : calls go through
+    WebSearchTool ..> ApiGatekeeper : Tavily go through
     ApiGatekeeper ..> LLMProvider : delegates to
     DebateSDK ..> DebateOrchestrator : creates & drives
+    DebateSDK ..> CostAggregator : aggregates at end
+    DebateOrchestrator ..> Watchdog : arms/resets timers
     DebateOrchestrator ..> DebateLogger : logs via
 ```

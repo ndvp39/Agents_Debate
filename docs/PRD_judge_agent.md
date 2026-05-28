@@ -2,7 +2,7 @@
 **Version:** 1.03  
 **Date:** 2026-05-26  
 **Author:** Nadav Goldin  
-**Files:** `src/debate/agents/judge/judge_agent.py`, `src/debate/agents/judge/skills.py`, `src/debate/agents/judge/verdict.py`
+**Files:** `src/debate/agents/judge/judge_agent.py`, `src/debate/agents/judge/verdict.py`, `src/debate/skills/judge/*/SKILL.md` (loaded via `SkillLoader` — see `PRD_debater_skills.md`)
 
 ---
 
@@ -34,9 +34,37 @@ The Judge is also the system's **anti-sycophancy enforcer**. Because LLMs natura
 
 ---
 
+## 3.0 State checkpoint (added in commit `387d725`)
+
+The judge persists its in-process state atomically to a per-debate JSON file
+after every successful scoring turn. State persisted:
+
+- `_round: int`
+- `_scores: dict[AgentID, list[PersuasionScore]]` (serialized via `dataclasses.asdict`)
+- `_last_arguments: dict[AgentID, str]` (for the NOVELTY CHECK context block)
+- `_last_feedback_sent: dict[AgentID, str]` (for the FEEDBACK ENFORCEMENT block)
+
+Write is atomic via `mkstemp` in the same directory + `os.replace`. The
+checkpoint path is allocated by `DebateSDK._allocate_judge_checkpoint()` and
+threaded into the judge subprocess argv as `--checkpoint`. On startup,
+`JudgeAgent._load_checkpoint()` re-reads the file if non-empty and reconstructs
+the in-process state — so a watchdog-restarted (or runner-exit-restarted)
+judge resumes with full score history rather than computing the final verdict
+from only post-restart rounds. Cleanup: SDK unlinks the file in `finally`.
+Empty/whitespace-only files are treated as "no checkpoint" silently (the SDK
+pre-allocates the file as empty; the judge writes after its first turn).
+
+---
+
 ## 3. Skills
 
-All four skills are defined in `skills.py` and registered locally. The Judge Agent does not use any globally defined skills.
+All judge skills are SKILL.md folders under `src/debate/skills/judge/`, loaded
+at runtime by `SkillLoader`. The judge agent does not maintain a Python skill
+registry (`register_skill` was removed in commit `ac3d46b`). The historical
+`RouteTurn` skill was split into two SKILL.md folders in commit `651a5a8`:
+`generate_judge_feedback` (LLM-prompt — produces the 2-3 sentence feedback)
+and `compose_next_turn_prompt` (deterministic — builds the literal
+`prompt_for_next` handoff string with no LLM call).
 
 ### Skill 1: `EnforceDebateMechanics`
 
@@ -153,8 +181,8 @@ The Judge Agent is instantiated **without** the `WebSearchTool`. No web-search t
 
 ## 7. Constraints
 
-- Skills MUST be defined locally in `skills.py` — not imported from any global/shared skill library.
-- No internet access — `WebSearchTool` MUST NOT be registered.
+- Skills MUST be SKILL.md folders under `src/debate/skills/judge/`, loaded at runtime by `SkillLoader`. No global/shared skill library.
+- No internet access — the judge agent is constructed without a `WebSearchTool` (`tests/unit/test_debate/test_agents/test_judge_agent.py::test_judge_has_no_web_search_capability` enforces this).
 - Ties in `DeclareVerdict` are forbidden — tie-breaker logic is mandatory.
 - The Judge MUST reprimand agreement — it cannot let sycophantic behavior pass.
 - All Judge output MUST be valid JSON matching the defined schemas.
