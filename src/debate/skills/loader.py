@@ -14,9 +14,10 @@ raises `SkillTypeMismatchError`.
 from __future__ import annotations
 
 import importlib.util
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import yaml
 
@@ -98,14 +99,14 @@ class SkillLoader:
         description = frontmatter.get("description", "")
         when_to_use = frontmatter.get("when_to_use", "")
 
-        common = dict(
-            name=declared_name,
-            type=skill_type,
-            description=description,
-            when_to_use=when_to_use,
-            body=body,
-            source_path=skill_dir / "SKILL.md",
-        )
+        common = {
+            "name": declared_name,
+            "type": skill_type,
+            "description": description,
+            "when_to_use": when_to_use,
+            "body": body,
+            "source_path": skill_dir / "SKILL.md",
+        }
 
         if skill_type == "llm_prompt":
             return LLMSkill(**common)

@@ -19,10 +19,12 @@ logging.basicConfig(
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from debate.ipc.channel import IPCChannel
-from debate.sdk.factory import subprocess_factory
-from debate.sdk.sdk import DebateSDK
-from debate.services.orchestrator import DebateOrchestrator
+# Imports below are intentionally after sys.path mutation + load_dotenv() above
+# so that env vars are present when subprocess factories construct API clients.
+from debate.ipc.channel import IPCChannel  # noqa: E402
+from debate.sdk.factory import subprocess_factory  # noqa: E402
+from debate.sdk.sdk import DebateSDK  # noqa: E402
+from debate.services.orchestrator import DebateOrchestrator  # noqa: E402
 
 TOPIC = "Will artificial intelligence replace human jobs"
 ROUNDS = 10

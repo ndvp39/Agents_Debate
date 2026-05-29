@@ -1,5 +1,6 @@
 """JudgeAgent — moderates the debate, scores arguments, declares the verdict."""
 
+import contextlib
 import json
 import logging
 import os
@@ -235,12 +236,8 @@ class JudgeAgent(BaseAgent):
                 json.dump(payload, fh)
             os.replace(tmp_name, path)
         except Exception:
-            with open(os.devnull, "w") as _:
-                pass
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(tmp_name)
-            except OSError:
-                pass
             raise
 
     def _load_checkpoint(self) -> None:

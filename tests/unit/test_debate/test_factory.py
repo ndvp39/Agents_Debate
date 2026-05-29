@@ -3,8 +3,7 @@
 import subprocess
 from unittest.mock import MagicMock, patch
 
-from debate.sdk.factory import Spawners, _SRC_DIR, subprocess_factory
-
+from debate.sdk.factory import _SRC_DIR, Spawners, subprocess_factory
 
 # ---------------------------------------------------------------------------
 # _SRC_DIR sanity check

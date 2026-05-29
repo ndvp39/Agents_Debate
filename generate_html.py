@@ -39,17 +39,18 @@ def _md(raw: str) -> str:
             out.append(f'<h{lvl} class="md-h">{content}</h{lvl}>')
             continue
         # List block (all non-empty lines start with `- ` or `* `)
-        list_lines = [l for l in lines if l.strip()]
-        if list_lines and all(re.match(r'^\s*[*-] ', l) for l in list_lines):
-            strip_bullet = lambda l: re.sub(r'^\s*[*-] ', '', l)
+        list_lines = [ln for ln in lines if ln.strip()]
+        if list_lines and all(re.match(r'^\s*[*-] ', ln) for ln in list_lines):
+            def _strip_bullet(text: str) -> str:
+                return re.sub(r'^\s*[*-] ', '', text)
             items = ''.join(
-                f'<li>{_inline(_h.escape(strip_bullet(l)))}</li>'
-                for l in list_lines
+                f'<li>{_inline(_h.escape(_strip_bullet(ln)))}</li>'
+                for ln in list_lines
             )
             out.append(f'<ul class="md-ul">{items}</ul>')
             continue
         # Paragraph: join lines with <br>, apply inline formatting
-        parts = [_inline(_h.escape(l)) for l in lines]
+        parts = [_inline(_h.escape(ln)) for ln in lines]
         out.append('<p>' + '<br>'.join(parts) + '</p>')
     return '\n'.join(out)
 

@@ -7,12 +7,9 @@ watchdog's `kill()` and the restart-spawn-and-resend flow exercise the actual
 OS process lifecycle, not mocks.
 """
 
-import json
 import subprocess
 import sys
-import tempfile
 import textwrap
-from pathlib import Path
 
 import pytest
 

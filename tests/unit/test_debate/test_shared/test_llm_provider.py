@@ -1,7 +1,7 @@
 """Tests for debate.shared.llm_provider — provider selection and callable factories."""
 
 import sys
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -15,7 +15,6 @@ from debate.shared.llm_provider import (
     make_judge_evaluate_llm,
     make_judge_route_llm,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

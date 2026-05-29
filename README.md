@@ -167,6 +167,13 @@ discovers and caches them — there is no Python skill-class registry.
 > **actual text**, not a turn-handoff string, and a watchdog-respawned debater
 > resumes on the correct round instead of restarting at round 1.
 
+> **Per-side skill set:** Pro and Con share the same 7 debater SKILL.md files;
+> contradiction is driven by the `STANCE` constant injected into every prompt
+> (`"completely FOR"` vs `"completely AGAINST"`) plus the anti-sycophancy
+> directive. This is an intentional choice — the lecturer sanctioned it in
+> class when a student asked, while noting his own preference would be
+> different skills per side.
+
 ### Key design patterns
 
 - **Mediator** — Orchestrator owns all routing; agents never talk directly

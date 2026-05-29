@@ -67,10 +67,7 @@ def make_tavily_search(
                 search_depth="advanced",
                 exclude_domains=_EXCLUDED_DOMAINS,
             )
-        if gatekeeper is None:
-            response = _do()
-        else:
-            response = gatekeeper.execute(_do)
+        response = _do() if gatekeeper is None else gatekeeper.execute(_do)
         results = _format_results(response)
         _log.info(
             "[%s] query=%r took=%.2fs results=%d",

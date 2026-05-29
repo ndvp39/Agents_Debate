@@ -216,6 +216,23 @@ deterministic skill or `.run` on an LLM-prompt skill).
 
 ---
 
+## 5.1 Per-side skill set — intentional choice
+
+Pro and Con share the same 7 debater SKILL.md folders. The opposing
+perspective is driven by the `STANCE` class constant on `ProAgent`
+(`"completely FOR"`) and `ConAgent` (`"completely AGAINST"`), which is
+substituted into every `{{ stance }}` placeholder rendered by the LLM-prompt
+skills, plus the `_ANTI_SYCOPHANCY` directive that `BaseDebater._wrapped_llm`
+prepends before every LLM call. This is an intentional design choice — the
+lecturer sanctioned it in class when a student asked about whether different
+skills per side are required, while noting his own preference would be
+different skills per side for sharper contradiction. We accepted the
+trade-off to keep the skill set DRY; per-side specialization could be added
+later by splitting the prompts into `craft_opening_pro` / `craft_opening_con`
+variants without changing the loader contract.
+
+---
+
 ## 6. Constraints
 
 - Skills MUST live under `src/debate/skills/` as folders containing `SKILL.md`
